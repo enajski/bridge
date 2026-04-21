@@ -1,0 +1,33 @@
+artifact: differential-evidence-card
+subject: tokio-broadcast-close-and-wraparound
+role:
+  - conformance
+  - exploration
+  - regression
+claim_class:
+  - safety
+  - spec-fidelity
+engines:
+  - reference
+inputs:
+  - basic_send_recv trace
+  - close_recv_race trace
+  - small wraparound bounded model
+oracles:
+  - trace-shape
+  - golden
+covered_claims:
+  - close lifecycle transitions are represented faithfully enough for trace replay
+  - waiter registration and wakeup protocol does not deadlock in explored bounded state space
+uncovered_claims:
+  - full u64 wraparound realism is not represented in tiny bounded domains
+confirmation_status: expected-window
+files:
+  - spec/bug-report.md
+  - spec/changelog.md
+commands:
+  - "tlc Trace.tla"
+  - "tlc MC_hunt_close.cfg"
+  - "tlc MC_hunt_wrap.cfg"
+follow_up:
+  - Reclassify wraparound violations as modeling artifacts when they rely on tiny-domain aliasing impossible in production u64 space.

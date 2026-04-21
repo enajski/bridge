@@ -1,0 +1,21 @@
+artifact: verification-policy
+policy-id: sysmobench-spin-phase1
+rules:
+  - scope:
+      subsystems: ["spin-trace-pipeline"]
+      system-categories: ["distributed"]
+      risk-classes: ["high"]
+    required-evidence:
+      unit-tests: optional
+      property-tests: optional
+      runtime-assertions: optional
+      docs-or-nl-spec: recommended
+      formal-spec: required
+      differential-tests: optional
+      trace-validation: required
+      benchmarks: optional
+      confirmation-evidence: recommended
+    evidence-roles:
+      conformance: ["trace-validation"]
+      exploration: ["model-check"]
+      confirmation: ["custom"]

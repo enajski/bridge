@@ -1,0 +1,63 @@
+artifact: evaluation-report
+id: sysmobench-formal-slice-v1-run-001
+evaluation_profile: docs/examples/evaluation-profile-sysmobench.yaml
+run_metadata:
+  date: 2026-04-20
+  mode: dry-example
+  notes:
+    - Illustrative report only; values are placeholders.
+comparisons:
+  - mode: baseline-direct-prompting
+    external_results:
+      compilation_check: fail
+      action_decomposition: partial
+      runtime_coverage: partial
+      trace_validation: fail
+      invariant_verification: fail
+    bridge_results:
+      artifact_validity:
+        verification-brief-valid: false
+        observable-contract-valid: false
+        verification-policy-valid: false
+        completeness-ledger-valid: false
+      workflow_usefulness:
+        handoff-artifact-completeness: low
+        missing-obligation-detection: low
+        phase-restart-recoverability: low
+      convergence:
+        repair-loop-count: 0
+        final-workflow-state: draft
+      outcome_labels:
+        - none
+  - mode: bridge-structured-workflow
+    external_results:
+      compilation_check: pass
+      action_decomposition: pass
+      runtime_coverage: partial
+      trace_validation: partial
+      invariant_verification: partial
+    bridge_results:
+      artifact_validity:
+        verification-brief-valid: true
+        observable-contract-valid: true
+        verification-policy-valid: true
+        completeness-ledger-valid: true
+      workflow_usefulness:
+        handoff-artifact-completeness: high
+        missing-obligation-detection: high
+        phase-restart-recoverability: medium
+      convergence:
+        repair-loop-count: 2
+        final-workflow-state: active
+      outcome_labels:
+        - spec-unfaithful
+        - expected-window
+        - clean-with-scope
+summary:
+  conclusion:
+    - Bridge workflow improves artifact discipline and interpretability.
+    - External benchmark outcomes improve, but not uniformly across all metrics.
+    - Non-binary outcomes remain important and should not be collapsed into simple pass/fail.
+follow_up:
+  - Add real measured values.
+  - Add separate evaluation track for diff-driven workflows.

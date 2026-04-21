@@ -1,0 +1,70 @@
+artifact: observable-contract
+subject: dpdk-ring-tail-publish-and-stall-window
+observables:
+  - name: reserve-prod
+    source:
+      path: artifact/lib/ring/rte_ring_elem_pvt.h
+      lines: "move_prod_head return site"
+    trigger_point: after
+    capture_timing: post-state
+    snapshot_strength: weak
+    collection_mode: instrumentation
+    semantics_scope: both
+    captures:
+      - thread-id
+      - batch-size
+      - prodHead
+      - consHead
+    maps_to:
+      - MPMCReserveProd
+      - HTSReserveProd
+      - RTSReserveProd
+    used_by:
+      - trace validation
+      - differential test
+  - name: publish-tail
+    source:
+      path: artifact/lib/ring/rte_ring_c11_pvt.h
+      lines: "__rte_ring_update_tail / mode-specific update_tail return"
+    trigger_point: after
+    capture_timing: post-state
+    snapshot_strength: strong
+    collection_mode: instrumentation
+    semantics_scope: both
+    captures:
+      - prodHead
+      - prodTail
+      - consHead
+      - consTail
+      - prodCnt
+      - prodTailCnt
+    maps_to:
+      - MPMCPublishTail
+      - HTSPublishTail
+      - RTSPublishTail
+      - TailProgress
+    used_by:
+      - trace validation
+      - runtime assertion
+      - differential test
+  - name: concurrent-trace-order
+    source:
+      path: harness/traces/concurrent_mpmc.ndjson
+      lines: "derived from timestamp order"
+    trigger_point: derived
+    capture_timing: mixed
+    snapshot_strength: derived
+    collection_mode: replay
+    semantics_scope: trace
+    captures:
+      - timestamp
+      - event-order
+    maps_to:
+      - trace-ordering-assumption
+    used_by:
+      - trace validation
+constraints:
+  - PublishTail is the linearization point for visibility of produced elements.
+  - Concurrent trace consumers must trust timestamp ordering over mutex-serialized emission order when these conflict.
+notes:
+  - Weak snapshot at reserve is acceptable because opposing tail may be stabilized later by acquire semantics inside CAS loop.

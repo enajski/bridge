@@ -1,0 +1,141 @@
+{:kind "project-profile"
+ :project-name "SysMoBench"
+ :root-path "../../../SysMoBench"
+ :code-paths ["config" "data" "tla_eval" "scripts"]
+ :docs-paths ["README.md" "docs"]
+ :formal-paths ["data/spec" "output/compilation_check" "output/invariant_verification" "output/trace_validation"]
+ :test-paths ["tests"]
+ :artifact-paths {:root ".bridge/artifacts"
+                  :phases ".bridge/artifacts/phases"
+                  :evidence ".bridge/artifacts/evidence"
+                  :evaluations ".bridge/artifacts/evaluations"
+                  :prompts ".bridge/artifacts/prompts"
+                  :policy "../bridge/examples/sysmobench/verification-policy.yaml"}
+ :verification-policy-path "../bridge/examples/sysmobench/verification-policy.yaml"
+ :canonical-commands [{:id "spin-trace-validation"
+                       :kind "trace-validation"
+                       :role "conformance"
+                       :cwd "."
+                       :command "source .venv/bin/activate && METHOD=${BRIDGE_SYSMOBENCH_METHOD:-direct_call} && MODEL=${BRIDGE_SYSMOBENCH_MODEL:-copilot_claude} && LATEST=$(ls -dt output/compilation_check/tla/spin/${METHOD}_${MODEL}/* | head -n1) && SPEC=$LATEST/spin.tla && CFG=$LATEST/spin.cfg && sysmobench --task spin --method $METHOD --model $MODEL --metric trace_validation --spec-file \"$SPEC\" --config-file \"$CFG\" --with-exist-traces 20"
+                       :description "Run SysMoBench spin trace-validation with latest compiled spec and existing traces"
+                       :result-parser {:type "regex-status"
+                                       :rules [{:stream :stdout :regex "Trace validation: ✓ PASS" :status "passed"}
+                                               {:stream :stderr :regex "Trace validation: ✓ PASS" :status "passed"}
+                                               {:stream :stdout :regex "Trace validation: ✗ FAIL" :status "failed"}
+                                               {:stream :stderr :regex "Trace validation: ✗ FAIL" :status "failed"}]
+                                       :captures [{:stream :stdout :regex "Postcondition TraceAccepted[^\\n]*false\\." :as "primary-failure" :failure-signal? true}
+                                                  {:stream :stderr :regex "Postcondition TraceAccepted[^\\n]*false\\." :as "primary-failure" :failure-signal? true}
+                                                  {:stream :stdout :regex "Parsing or semantic analysis failed\\." :as "semantic-failure" :failure-signal? true}
+                                                  {:stream :stderr :regex "Parsing or semantic analysis failed\\." :as "semantic-failure" :failure-signal? true}]
+                                       :path-extractors [{:stream :stdout :regex "Looking for existing specTrace files in: (.+)" :as "spec-dir"}
+                                                         {:stream :stdout :regex "Generated specTrace files in: (.+)" :as "spec-dir"}
+                                                         {:stream :stdout :regex "Spec directory: (.+)" :as "spec-dir"}
+                                                         {:stream :stdout :regex "Using output directory: (.+)" :as "output-dir"}
+                                                         {:stream :stdout :regex "Trace file: (.+)" :as "sample-trace"}
+                                                         {:stream :stdout :regex "Verifying trace 1/[^:]+: ([^\\n]+)" :as "sample-trace"}]
+                                       :suggested-labels ["spec-unfaithful" "reproduced"]}}
+                      {:id "spin-invariant-verification"
+                       :kind "model-check"
+                       :role "exploration"
+                       :cwd "."
+                       :command "source .venv/bin/activate && METHOD=${BRIDGE_SYSMOBENCH_METHOD:-direct_call} && MODEL=${BRIDGE_SYSMOBENCH_MODEL:-copilot_claude} && LATEST=$(ls -dt output/compilation_check/tla/spin/${METHOD}_${MODEL}/* | head -n1) && SPEC=$LATEST/spin.tla && CFG=$LATEST/spin.cfg && sysmobench --task spin --method $METHOD --model $MODEL --metric invariant_verification --spec-file \"$SPEC\" --config-file \"$CFG\" --tlc-timeout 180"
+                       :description "Run SysMoBench spin invariant verification with latest compiled spec"
+                       :result-parser {:type "regex-status"
+                                       :rules [{:stream :stdout :regex "Semantics Evaluation Results: ✓ PASS" :status "passed"}
+                                               {:stream :stderr :regex "Semantics Evaluation Results: ✓ PASS" :status "passed"}
+                                               {:stream :stdout :regex "Semantics Evaluation Results: ✗ FAIL" :status "failed"}
+                                               {:stream :stderr :regex "Semantics Evaluation Results: ✗ FAIL" :status "failed"}]
+                                       :captures [{:stream :stdout :regex "Metric 'invariant_verification': ✗ FAIL" :as "metric-failure" :failure-signal? true}
+                                                  {:stream :stderr :regex "Metric 'invariant_verification': ✗ FAIL" :as "metric-failure" :failure-signal? true}
+                                                  {:stream :stdout :regex "Multiply-defined symbol '[^']+'" :as "primary-failure" :failure-signal? true}
+                                                  {:stream :stderr :regex "Multiply-defined symbol '[^']+'" :as "primary-failure" :failure-signal? true}]
+                                       :path-extractors [{:stream :stdout :regex "Using output directory: (.+)" :as "output-dir"}
+                                                         {:stream :stdout :regex "Specification: (.+)" :as "spec-file"}]
+                                       :suggested-labels ["spec-unfaithful" "reproduced"]}}
+                      {:id "spin-generated-wrapper-check"
+                       :kind "custom"
+                       :role "confirmation"
+                       :cwd "."
+                       :command "find output/compilation_check/tla/spin -type f | grep -E 'specTrace\\.(tla|cfg)$' | sort"
+                       :description "List generated specTrace wrapper artifacts for spin"}]
+ :subsystems [{:name "spin-trace-pipeline"
+               :code-globs ["config/models.yaml"
+                            "data/convertor/spin/**/*.json"
+                            "tla_eval/core/spec_processing/**/*.py"
+                            "tla_eval/core/trace_generation/spin/**/*.py"
+                            "tla_eval/core/verification/**/*.py"
+                            "tla_eval/evaluation/consistency/**/*.py"]
+               :docs-globs ["README.md" "docs/**/*.md"]
+               :formal-globs ["data/spec/spin/**/*.tla"
+                              "output/compilation_check/tla/spin/**/*.tla"
+                              "output/compilation_check/tla/spin/**/*.cfg"
+                              "output/invariant_verification/tla/spin/**/*"
+                              "output/trace_validation/tla/spin/**/*"]
+               :test-globs ["tests/**/*.py"]
+               :expected-artifacts ["change-intent-card"
+                                    "verification-brief"
+                                    "observable-contract"
+                                    "completeness-ledger"
+                                    "verification-scope-ledger"
+                                    "assumption-ledger"]
+               :expected-evidence ["trace-validation" "model-check" "custom"]
+               :system-category "distributed"
+               :risk-class "high"
+               :environment-assumptions ["Python virtualenv is active or activatable from .venv."
+                                         "Selected model in config/models.yaml resolves through local credentials."]}]
+ :phases [{:id :analyze :action "analyze-change" :output-path ".bridge/artifacts/phases/analyze.yaml"}
+          {:id :brief :action "generate-brief" :output-path ".bridge/artifacts/phases/brief.yaml"}
+          {:id :observe :action "generate-observable" :output-path ".bridge/artifacts/phases/observe.yaml"}
+          {:id :plan :action "plan-seed" :output-path ".bridge/artifacts/phases/plan.yaml"}
+          {:id :evidence-trace :action "run-evidence" :evidence-id "spin-trace-validation" :output-path ".bridge/artifacts/phases/trace-validation.yaml"}
+          {:id :evidence-invariants :action "run-evidence" :evidence-id "spin-invariant-verification" :output-path ".bridge/artifacts/phases/invariant-verification.yaml"}]
+ :file-glob-rules [{:glob "data/convertor/spin/**/*.json"
+                    :subsystem "spin-trace-pipeline"
+                    :mechanism-family "trace-conversion"
+                    :concern-class "spec-fidelity"
+                    :contract "Spin event and variable mapping preserve trace semantics."
+                    :risk-note "Mapping drift can create false positives or false negatives in trace validation."}
+                   {:glob "tla_eval/core/trace_generation/spin/**/*.py"
+                    :subsystem "spin-trace-pipeline"
+                    :mechanism-family "trace-conversion"
+                    :concern-class "spec-fidelity"
+                    :contract "Spin trace generation stays aligned with runtime trace shape."
+                    :risk-note "Trace conversion code changes require trace-validation reruns."}
+                   {:glob "tla_eval/core/verification/**/*.py"
+                    :subsystem "spin-trace-pipeline"
+                    :mechanism-family "verification-harness"
+                    :concern-class "safety"
+                    :contract "Verification harness executes intended TLC and wrapper validation steps."
+                    :risk-note "Harness drift can invalidate executable evidence and stale generated configs."}
+                   {:glob "tla_eval/core/spec_processing/**/*.py"
+                    :subsystem "spin-trace-pipeline"
+                    :mechanism-family "specTrace-generation"
+                    :concern-class "spec-fidelity"
+                    :contract "Generated specTrace wrappers preserve source spec intent."
+                    :formal-module "data/spec/spin"
+                    :risk-note "Generator drift can produce malformed or semantically wrong specTrace wrappers."}
+                   {:glob "tla_eval/evaluation/consistency/**/*.py"
+                    :subsystem "spin-trace-pipeline"
+                    :mechanism-family "verification-orchestration"
+                    :concern-class "code-level"
+                    :contract "Evaluation orchestration reports and validates end-to-end evidence correctly."
+                    :risk-note "Orchestration changes require end-to-end reruns and ledger refresh."}
+                   {:glob "config/models.yaml"
+                    :subsystem "spin-trace-pipeline"
+                    :mechanism-family "tooling-config"
+                    :concern-class "code-level"
+                    :contract "Configured model aliases resolve to intended provider behavior."
+                    :risk-note "Model alias or provider drift can change generated formal artifacts and evidence outputs."}]
+ :derived-artifacts [{:name "spin-specTrace-wrapper"
+                      :kind "generated-formal-wrapper"
+                      :inputs ["tla_eval/core/spec_processing/**/*.py"
+                               "output/compilation_check/tla/spin/**/*.tla"
+                               "output/compilation_check/tla/spin/**/*.cfg"]
+                      :outputs ["output/compilation_check/tla/spin/**/specTrace.tla"
+                                "output/compilation_check/tla/spin/**/specTrace.cfg"]}
+                     {:name "spin-trace-config"
+                      :kind "generated-trace-config"
+                      :inputs ["data/convertor/spin/**/*.json"
+                               "tla_eval/core/trace_generation/spin/**/*.py"
+                               "config/models.yaml"]
+                      :outputs ["output/trace_validation/tla/spin/**/*.yaml"]}]}

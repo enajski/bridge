@@ -1,0 +1,9 @@
+{:paths ["src" "resources"]
+ :tasks
+ {bridge {:doc "Run bridge CLI with Babashka"
+          :requires ([bridge.cli :as cli])
+          :task (apply cli/-main *command-line-args*)}
+  test   {:doc "Run bridge test suite with Babashka"
+          :extra-paths ["test"]
+          :requires ([bridge.test-runner :as runner])
+          :task (runner/-main)}}}

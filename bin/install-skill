@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+# Install bridge-verify skill for pi and/or opencode.
+# Run from bridge repo root.
+set -euo pipefail
+
+SKILL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+SKILL_SRC="$SKILL_DIR/.agents/skills/bridge-verify"
+
+echo "Bridge skill source: $SKILL_SRC"
+
+install_pi() {
+  local target="$HOME/.pi/agent/skills/bridge-verify"
+  if [ -L "$target" ] || [ -d "$target" ]; then
+    echo "pi: already installed at $target"
+  else
+    mkdir -p "$(dirname "$target")"
+    ln -s "$SKILL_SRC" "$target"
+    echo "pi: installed → $target"
+  fi
+}
+
+install_opencode() {
+  local target="$HOME/.config/opencode/oh-my-opencode/skills/bridge-verify"
+  if [ -L "$target" ] || [ -d "$target" ]; then
+    echo "opencode: already installed at $target"
+  else
+    mkdir -p "$(dirname "$target")"
+    ln -s "$SKILL_SRC" "$target"
+    echo "opencode: installed → $target"
+  fi
+}
+
+install_agents_global() {
+  local target="$HOME/.agents/skills/bridge-verify"
+  if [ -L "$target" ] || [ -d "$target" ]; then
+    echo ".agents (global): already installed at $target"
+  else
+    mkdir -p "$(dirname "$target")"
+    ln -s "$SKILL_SRC" "$target"
+    echo ".agents (global): installed → $target"
+  fi
+}
+
+install_project() {
+  local project_dir="${1:-.}"
+  local target="$project_dir/.agents/skills/bridge-verify"
+  if [ -L "$target" ] || [ -d "$target" ]; then
+    echo "project ($project_dir): already installed at $target"
+  else
+    mkdir -p "$(dirname "$target")"
+    ln -s "$SKILL_SRC" "$target"
+    echo "project ($project_dir): installed → $target"
+  fi
+}
+
+case "${1:-all}" in
+  pi)       install_pi ;;
+  opencode) install_opencode ;;
+  global)   install_agents_global ;;
+  project)  install_project "${2:-.}" ;;
+  all)
+    install_pi
+    install_agents_global
+    echo ""
+    echo "For opencode: run '$0 opencode'"
+    echo "For a specific project: run '$0 project /path/to/project'"
+    ;;
+  *)
+    echo "Usage: $0 [pi|opencode|global|project <dir>|all]"
+    echo ""
+    echo "  pi       — install to ~/.pi/agent/skills/"
+    echo "  opencode — install to ~/.config/opencode/oh-my-opencode/skills/"
+    echo "  global   — install to ~/.agents/skills/ (both pi and opencode)"
+    echo "  project  — install to <dir>/.agents/skills/ (project-local)"
+    echo "  all      — install pi + global (default)"
+    exit 1
+    ;;
+esac

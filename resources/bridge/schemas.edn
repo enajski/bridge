@@ -1,0 +1,718 @@
+{:enums
+ {:system-categories ["distributed" "actor-message" "shared-memory" "lock-free" "async-runtime"
+                      "api" "business-rule" "data-pipeline" "legacy" "other"]
+  :concern-classes ["safety" "liveness" "performance" "code-level" "spec-fidelity"]
+  :verification-methods ["model-checkable" "test-verifiable" "code-review-only" "out-of-scope"]
+  :workflow-states ["draft" "active" "converged" "regressed"]
+  :completeness-statuses ["required" "present" "missing" "deferred" "waived"]
+  :evidence-roles ["conformance" "exploration" "confirmation" "regression"]
+  :finding-statuses ["none" "suspected" "spurious" "spec-unfaithful" "retracted" "audited"
+                     "reproduced" "confirmed" "clean-with-scope" "expected-window"
+                     "known-deviation" "assumption-dependent-clean"]
+  :trigger-points ["before" "after" "during" "derived"]
+  :capture-timings ["pre-state" "post-state" "mixed"]
+  :snapshot-strengths ["weak" "strong" "derived"]
+  :collection-modes ["instrumentation" "log-parsing" "replay" "other"]
+  :semantics-scopes ["base" "trace" "both"]
+  :environment-assumptions ["transport" "scheduler" "memory-model" "runtime-delivery"
+                            "type-system" "other"]
+  :evidence-kinds ["unit" "property" "runtime" "differential" "trace-validation" "benchmark"
+                   "proof" "model-check" "symbolic" "custom"]
+  :requirement-levels ["required" "recommended" "optional" "forbidden"]
+  :risk-classes ["low" "medium" "high"]
+  :change-categories ["feature" "bugfix" "refactor" "spec-only" "code-only" "tests-only"
+                      "mixed" "docs-only"]
+  :change-sources ["spec-diff" "code-diff" "formal-diff" "test-diff" "manual-request"]
+  :api-kinds ["defn" "protocol" "record" "const" "var" "macro"]
+  :formal-relations ["maps_to" "supports" "none"]
+  :formal-coverage ["proof" "model-check" "port" "doc"]
+  :formal-claim-statuses ["machine-checked" "axiomatised" "model-checked" "documented"]
+  :omission-statuses ["deferred" "waived" "accepted-risk"]
+  :evaluation-suite-kinds ["benchmark" "formal" "workflow" "custom"]
+  :feasibility-fits ["strong" "partial" "weak" "blocked" "unknown"]
+  :recommendations ["go" "conditional-go" "no-go"]
+  :phase-actions ["analyze-change" "render-prompt" "init-artifact" "run-evidence"
+                  "generate-brief" "generate-observable" "plan-seed"]
+  :verification-changelog-kinds ["fix-spec" "fix-inv" "fix-trace" "fix-config" "reclassify"
+                                 "rerun" "note"]
+  :status-effects ["none" "converged" "regressed" "retracted"]
+  :audit-statuses ["draft" "reviewed" "accepted"]}
+
+ :artifact-schemas
+ {"bridge-index"
+  {:type :map
+   :required {:artifact {:type :enum :values ["bridge-index"]}
+              :subsystem {:type :string}
+              :repo-paths {:type :map
+                           :required {:code {:type :vector :items {:type :string}}
+                                      :docs {:type :vector :items {:type :string}}
+                                      :formal {:type :vector :items {:type :string}}
+                                      :tests {:type :vector :items {:type :string}}}
+                           :optional {}}
+              :semantic-core {:type :map
+                              :required {:summary {:type :string}
+                                         :key-entities {:type :vector
+                                                        :items {:type :map
+                                                                :required {:name {:type :string}
+                                                                           :role {:type :string}}
+                                                                :optional {}}}}
+                              :optional {}}
+              :bridge-links {:type :map
+                             :required {:code-to-spec {:type :vector :items {:type :string}}
+                                        :spec-to-formal {:type :vector :items {:type :string}}
+                                        :formal-to-evidence {:type :vector :items {:type :string}}}
+                             :optional {}}
+              :coverage {:type :map
+                         :required {:proved {:type :vector :items {:type :string}}
+                                    :model-checked {:type :vector :items {:type :string}}
+                                    :differential-only {:type :vector :items {:type :string}}
+                                    :undocumented-or-unchecked {:type :vector :items {:type :string}}}
+                         :optional {}}
+              :risks {:type :vector :items {:type :string}}
+              :next-artifacts {:type :vector :items {:type :string}}}
+   :optional {:citations {:type :vector :items {:type :string}}}}
+
+  "namespace-bridge-card"
+  {:type :map
+   :required {:artifact {:type :enum :values ["namespace-bridge-card"]}
+              :namespace {:type :string}
+              :files {:type :vector :items {:type :string}}
+              :public-api {:type :vector
+                           :items {:type :map
+                                   :required {:symbol {:type :string}
+                                              :kind {:type :enum :enum :api-kinds}
+                                              :role {:type :string}}
+                                   :optional {}}}
+              :semantic-contract {:type :map
+                                  :required {:inputs {:type :vector :items {:type :string}}
+                                             :outputs {:type :vector :items {:type :string}}
+                                             :invariants {:type :vector :items {:type :string}}
+                                             :failure-modes {:type :vector :items {:type :string}}}
+                                  :optional {}}
+              :formal-links {:type :map
+                             :required {:rocq {:type :vector :items {:type :map
+                                                                     :required {:module {:type :string}
+                                                                                :relation {:type :enum :enum :formal-relations}}
+                                                                     :optional {}}}
+                                        :tla {:type :vector :items {:type :map
+                                                                    :required {:module {:type :string}
+                                                                               :relation {:type :enum :enum :formal-relations}}
+                                                                    :optional {}}}
+                                        :lean {:type :vector :items {:type :map
+                                                                     :required {:module {:type :string}
+                                                                                :relation {:type :enum :enum :formal-relations}}
+                                                                     :optional {}}}}
+                             :optional {}}
+              :evidence {:type :map
+                         :required {:tests {:type :vector :items {:type :string}}
+                                    :scripts {:type :vector :items {:type :string}}}
+                         :optional {}}
+              :gaps {:type :vector :items {:type :string}}
+              :change-hazards {:type :vector :items {:type :string}}}
+   :optional {:citations {:type :vector :items {:type :string}}}}
+
+  "formal-linkage-card"
+  {:type :map
+   :required {:artifact {:type :enum :values ["formal-linkage-card"]}
+              :formal-module {:type :string}
+              :models {:type :map
+                       :required {:code-paths {:type :vector :items {:type :string}}
+                                  :doc-paths {:type :vector :items {:type :string}}}
+                       :optional {}}
+              :coverage-kind {:type :enum :enum :formal-coverage}
+              :formal-claims {:type :vector
+                              :items {:type :map
+                                      :required {:claim {:type :string}
+                                                 :status {:type :enum :enum :formal-claim-statuses}
+                                                 :code-hooks {:type :vector :items {:type :string}}}
+                                      :optional {}}}
+              :assumptions {:type :vector :items {:type :string}}
+              :known-mismatches {:type :vector :items {:type :string}}
+              :missing-obligations {:type :vector :items {:type :string}}}
+   :optional {:citations {:type :vector :items {:type :string}}}}
+
+  "differential-evidence-card"
+  {:type :map
+   :required {:artifact {:type :enum :values ["differential-evidence-card"]}
+              :subject {:type :string}
+              :role {:type :vector :items {:type :enum :enum :evidence-roles}}
+              :claim-class {:type :vector :items {:type :enum :enum :concern-classes}}
+              :engines {:type :vector :items {:type :string}}
+              :inputs {:type :vector :items {:type :string}}
+              :oracles {:type :vector :items {:type :string}}
+              :covered-claims {:type :vector :items {:type :string}}
+              :uncovered-claims {:type :vector :items {:type :string}}
+              :confirmation-status {:type :enum :enum :finding-statuses}
+              :evidence-strength {:type :enum :values ["strong" "medium" "weak"]}
+              :files {:type :vector :items {:type :string}}
+              :commands {:type :vector :items {:type :string}}
+              :follow-up {:type :vector :items {:type :string}}}
+   :optional {:citations {:type :vector :items {:type :string}}}}
+
+  "assumption-ledger"
+  {:type :map
+   :required {:artifact {:type :enum :values ["assumption-ledger"]}
+              :subject {:type :string}
+              :code-assumptions {:type :vector :items {:type :string}}
+              :formal-assumptions {:type :vector :items {:type :string}}
+              :differential-assumptions {:type :vector :items {:type :string}}
+              :mismatches {:type :vector :items {:type :string}}
+              :needed-witness-artifacts {:type :vector :items {:type :string}}}
+   :optional {:citations {:type :vector :items {:type :string}}}}
+
+  "change-impact-report"
+  {:type :map
+   :required {:artifact {:type :enum :values ["change-impact-report"]}
+              :change-surface {:type :vector :items {:type :string}}
+              :affected-contracts {:type :vector :items {:type :string}}
+              :affected-formal-modules {:type :vector :items {:type :string}}
+              :affected-tests {:type :vector :items {:type :string}}
+              :revalidation-plan {:type :vector
+                                  :items {:type :map
+                                          :required {:step {:type :integer}
+                                                     :action {:type :string}
+                                                     :command {:type :string}}
+                                          :optional {}}}
+              :open-risks {:type :vector :items {:type :string}}}
+   :optional {}}
+
+  "specification-quality-card"
+  {:type :map
+   :required {:artifact {:type :enum :values ["specification-quality-card"]}
+              :subject {:type :string}
+              :intent-sources {:type :vector :items {:type :string}}
+              :ambiguity-points {:type :vector
+                                 :items {:type :map
+                                         :required {:question {:type :string}
+                                                    :alternatives {:type :vector :items {:type :string}}
+                                                    :resolved-by {:type :string}}
+                                         :optional {}}}
+              :soundness-signals {:type :vector :items {:type :string}}
+              :completeness-signals {:type :vector :items {:type :string}}
+              :validation-artifacts {:type :vector :items {:type :string}}
+              :open-gaps {:type :vector :items {:type :string}}
+              :next-checks {:type :vector :items {:type :string}}}
+   :optional {:citations {:type :vector :items {:type :string}}}}
+
+  "spot-evidence-card"
+  {:type :map
+   :required {:artifact {:type :enum :values ["spot-evidence-card"]}
+              :subject {:type :string}
+              :verified-component {:type :vector :items {:type :string}}
+              :spot-goal {:type :vector :items {:type :string}}
+              :small-instance {:type :map
+                               :required {:inputs {:type :vector :items {:type :string}}
+                                          :expected-observables {:type :vector :items {:type :string}}}
+                               :optional {}}
+              :proof-obligations {:type :vector :items {:type :string}}
+              :runtime-observables {:type :vector :items {:type :string}}
+              :spec-precision-findings {:type :vector :items {:type :string}}
+              :review-risks {:type :vector :items {:type :string}}
+              :follow-up {:type :vector :items {:type :string}}}
+   :optional {:citations {:type :vector :items {:type :string}}}}
+
+  "verification-policy"
+  {:type :map
+   :required {:artifact {:type :enum :values ["verification-policy"]}
+              :policy-id {:type :string}
+              :rules {:type :vector
+                      :items {:type :map
+                              :required {:scope {:type :map
+                                                 :required {}
+                                                 :optional {:subsystems {:type :vector :items {:type :string}}
+                                                            :change-categories {:type :vector :items {:type :string}}
+                                                            :system-categories {:type :vector :items {:type :enum :enum :system-categories}}
+                                                            :risk-classes {:type :vector :items {:type :enum :enum :risk-classes}}
+                                                            :concern-classes {:type :vector :items {:type :enum :enum :concern-classes}}}}
+                                         :required-evidence {:type :map
+                                                             :required {:unit-tests {:type :enum :enum :requirement-levels}
+                                                                        :property-tests {:type :enum :enum :requirement-levels}
+                                                                        :runtime-assertions {:type :enum :enum :requirement-levels}
+                                                                        :docs-or-nl-spec {:type :enum :enum :requirement-levels}
+                                                                        :formal-spec {:type :enum :enum :requirement-levels}
+                                                                        :differential-tests {:type :enum :enum :requirement-levels}
+                                                                        :trace-validation {:type :enum :enum :requirement-levels}
+                                                                        :benchmarks {:type :enum :enum :requirement-levels}
+                                                                        :confirmation-evidence {:type :enum :enum :requirement-levels}}
+                                                             :optional {}}}
+                              :optional {:evidence-roles {:type :map
+                                                          :required {}
+                                                          :optional {:conformance {:type :vector :items {:type :enum :enum :evidence-kinds}}
+                                                                     :exploration {:type :vector :items {:type :enum :enum :evidence-kinds}}
+                                                                     :confirmation {:type :vector :items {:type :enum :enum :evidence-kinds}}
+                                                                     :regression {:type :vector :items {:type :enum :enum :evidence-kinds}}}}
+                                         :omission-rules {:type :map
+                                                          :required {:allowed? {:type :boolean}
+                                                                     :requires-record? {:type :boolean}}
+                                                          :optional {:required-fields {:type :vector :items {:type :string}}}}
+                                         :review-rules {:type :map
+                                                        :required {}
+                                                        :optional {:high-risk-triggers {:type :vector :items {:type :string}}
+                                                                   :revalidation-commands {:type :vector :items {:type :string}}}}
+                                         :notes {:type :vector :items {:type :string}}}}}}
+   :optional {:citations {:type :vector :items {:type :string}}}}
+
+  "verification-brief"
+  {:type :map
+   :required {:artifact {:type :enum :values ["verification-brief"]}
+              :subject {:type :string}
+              :category {:type :enum :enum :system-categories}
+              :summary {:type :vector :items {:type :string}}
+              :concern-classes {:type :vector :items {:type :enum :enum :concern-classes}}
+              :environment-assumptions {:type :vector :items {:type :string}}
+              :mechanism-families {:type :vector
+                                   :items {:type :map
+                                           :required {:name {:type :string}
+                                                      :description {:type :string}
+                                                      :concern-class {:type :enum :enum :concern-classes}
+                                                      :verification-method {:type :enum :enum :verification-methods}
+                                                      :affected-paths {:type :vector :items {:type :string}}
+                                                      :planned-evidence {:type :vector :items {:type :string}}}
+                                           :optional {}}}
+              :co-model-with {:type :vector :items {:type :string}}
+              :non-goals {:type :vector :items {:type :string}}
+              :handoff-outputs {:type :vector :items {:type :string}}
+              :open-questions {:type :vector :items {:type :string}}}
+   :optional {:citations {:type :vector :items {:type :string}}
+              :environment-assumption-categories {:type :vector :items {:type :enum :enum :environment-assumptions}}
+              :model-finiteness-hints {:type :vector
+                                       :items {:type :map
+                                               :required {:variable-pattern {:type :string}
+                                                          :suggested-constant {:type :string}
+                                                          :reason {:type :string}}
+                                               :optional {:typical-values {:type :string}}}}}}
+  "change-intent-card"
+  {:type :map
+   :required {:artifact {:type :enum :values ["change-intent-card"]}
+              :change-id {:type :string}
+              :change-surface {:type :vector :items {:type :string}}
+              :change-sources {:type :vector :items {:type :enum :enum :change-sources}}
+              :inferred-intent {:type :map
+                                :required {:summary {:type :string}
+                                           :categories {:type :vector :items {:type :enum :enum :change-categories}}
+                                           :mechanism-families {:type :vector :items {:type :string}}
+                                           :concern-classes {:type :vector :items {:type :enum :enum :concern-classes}}}
+                                :optional {}}
+              :accepted-intent {:type :map
+                                :required {:status {:type :enum :enum :audit-statuses}
+                                           :summary {:type :string}}
+                                :optional {}}
+              :semantic-scope {:type :map
+                               :required {:contracts {:type :vector :items {:type :string}}
+                                          :subsystems {:type :vector :items {:type :string}}}
+                               :optional {}}
+              :risk-class {:type :enum :enum :risk-classes}
+              :workflow-state {:type :enum :enum :workflow-states}
+              :missing-obligations {:type :vector :items {:type :string}}
+              :stale-artifacts {:type :vector :items {:type :string}}
+              :open-questions {:type :vector :items {:type :string}}}
+   :optional {:missing-obligations-structured {:type :vector
+                                               :items {:type :map-of
+                                                       :keys {:type :identifier}
+                                                       :values {:type :any}}}
+              :stale-artifacts-detailed {:type :vector
+                                         :items {:type :map-of
+                                                 :keys {:type :identifier}
+                                                 :values {:type :any}}}
+              :requirement-sources {:type :vector
+                                    :items {:type :map
+                                            :required {:kind {:type :string}
+                                                       :source-path {:type :string}
+                                                       :feature {:type :string}
+                                                       :product {:type :string}
+                                                       :requirement-count {:type :integer}
+                                                       :requirement-ids {:type :vector :items {:type :string}}}
+                                            :optional {}}}
+              :citations {:type :vector :items {:type :string}}}}
+
+  "plan-seed"
+  {:type :map
+   :required {:artifact {:type :enum :values ["plan-seed"]}
+              :plan-seed/id {:type :string}
+              :subject {:type :string}
+              :workflow-state {:type :enum :enum :workflow-states}
+              :steps {:type :vector
+                      :items {:type :map
+                              :required {:step {:type :integer}
+                                         :kind {:type :string}
+                                         :summary {:type :string}}
+                              :optional {}}}
+              :artifacts-to-update {:type :vector :items {:type :string}}
+              :commands {:type :vector :items {:type :string}}}
+   :optional {}}
+
+  "completeness-ledger"
+  {:type :map
+   :required {:artifact {:type :enum :values ["completeness-ledger"]}
+              :subject {:type :string}
+              :workflow-state {:type :enum :enum :workflow-states}
+              :areas {:type :map
+                      :required {:contract {:type :map :required {:status {:type :enum :enum :completeness-statuses}
+                                                                   :artifacts {:type :vector :items {:type :string}}}
+                                            :optional {:requirement-ids {:type :vector :items {:type :string}}}}
+                                 :implementation {:type :map :required {:status {:type :enum :enum :completeness-statuses}
+                                                                         :artifacts {:type :vector :items {:type :string}}}
+                                                   :optional {:requirement-ids {:type :vector :items {:type :string}}}}
+                                 :unit-tests {:type :map :required {:status {:type :enum :enum :completeness-statuses}
+                                                                    :artifacts {:type :vector :items {:type :string}}}
+                                              :optional {:requirement-ids {:type :vector :items {:type :string}}}}
+                                 :property-tests {:type :map :required {:status {:type :enum :enum :completeness-statuses}
+                                                                        :artifacts {:type :vector :items {:type :string}}}
+                                                  :optional {:requirement-ids {:type :vector :items {:type :string}}}}
+                                 :runtime-assertions {:type :map :required {:status {:type :enum :enum :completeness-statuses}
+                                                                             :artifacts {:type :vector :items {:type :string}}}
+                                                       :optional {:requirement-ids {:type :vector :items {:type :string}}}}
+                                 :formal-spec {:type :map :required {:status {:type :enum :enum :completeness-statuses}
+                                                                     :artifacts {:type :vector :items {:type :string}}}
+                                               :optional {:requirement-ids {:type :vector :items {:type :string}}}}
+                                 :differential-evidence {:type :map :required {:status {:type :enum :enum :completeness-statuses}
+                                                                                 :artifacts {:type :vector :items {:type :string}}}
+                                                         :optional {:requirement-ids {:type :vector :items {:type :string}}}}
+                                 :docs {:type :map :required {:status {:type :enum :enum :completeness-statuses}
+                                                              :artifacts {:type :vector :items {:type :string}}}
+                                        :optional {:requirement-ids {:type :vector :items {:type :string}}}}}
+                      :optional {}}
+              :notes {:type :vector :items {:type :string}}}
+   :optional {}}
+
+  "verification-scope-ledger"
+  {:type :map
+   :required {:artifact {:type :enum :values ["verification-scope-ledger"]}
+              :subject {:type :string}
+              :workflow-state {:type :enum :enum :workflow-states}
+              :coverage {:type :map
+                         :required {:proved {:type :vector :items {:type :string}}
+                                    :model-checked {:type :vector :items {:type :string}}
+                                    :differential-tested {:type :vector :items {:type :string}}
+                                    :property-tested {:type :vector :items {:type :string}}
+                                    :runtime-asserted {:type :vector :items {:type :string}}
+                                    :documented-only {:type :vector :items {:type :string}}
+                                    :intentionally-uncovered {:type :vector :items {:type :string}}}
+                         :optional {}}
+              :boundaries {:type :vector :items {:type :string}}
+              :follow-up {:type :vector :items {:type :string}}}
+   :optional {:requirement-coverage {:type :map
+                                     :required {}
+                                     :optional {:proved {:type :vector :items {:type :string}}
+                                                :model-checked {:type :vector :items {:type :string}}
+                                                :differential-tested {:type :vector :items {:type :string}}
+                                                :property-tested {:type :vector :items {:type :string}}
+                                                :runtime-asserted {:type :vector :items {:type :string}}
+                                                :documented-only {:type :vector :items {:type :string}}
+                                                :intentionally-uncovered {:type :vector :items {:type :string}}}}}}
+
+  "observable-contract"
+  {:type :map
+   :required {:artifact {:type :enum :values ["observable-contract"]}
+              :subject {:type :string}
+              :observables {:type :vector
+                            :items {:type :map
+                                    :required {:name {:type :string}
+                                               :source {:type :map
+                                                        :required {:path {:type :string}
+                                                                   :lines {:type :string}}
+                                                        :optional {}}
+                                               :trigger-point {:type :enum :enum :trigger-points}
+                                               :capture-timing {:type :enum :enum :capture-timings}
+                                               :snapshot-strength {:type :enum :enum :snapshot-strengths}
+                                               :collection-mode {:type :enum :enum :collection-modes}
+                                               :semantics-scope {:type :enum :enum :semantics-scopes}
+                                               :captures {:type :vector :items {:type :string}}
+                                               :maps-to {:type :vector :items {:type :string}}
+                                               :used-by {:type :vector :items {:type :string}}}
+                                    :optional {:requirement-ids {:type :vector :items {:type :string}}}}}
+              :constraints {:type :vector :items {:type :string}}
+              :notes {:type :vector :items {:type :string}}}
+   :optional {:citations {:type :vector :items {:type :string}}}}
+
+  "omission-decision-record"
+  {:type :map
+   :required {:artifact {:type :enum :values ["omission-decision-record"]}
+              :decision-id {:type :string}
+              :subject {:type :string}
+              :omitted-item {:type :string}
+              :status {:type :enum :enum :omission-statuses}
+              :rationale {:type :vector :items {:type :string}}
+              :compensating-controls {:type :vector :items {:type :string}}
+              :owner {:type :string}
+              :review-trigger {:type :vector :items {:type :string}}
+              :related-artifacts {:type :vector :items {:type :string}}}
+   :optional {:approvals {:type :vector :items {:type :string}}
+              :requirement-ids {:type :vector :items {:type :string}}}}
+
+  "evaluation-profile"
+  {:type :map
+   :required {:artifact {:type :enum :values ["evaluation-profile"]}
+              :evaluation-id {:type :string}
+              :subject {:type :string}
+              :target-suite {:type :string}
+              :suite-kind {:type :enum :enum :evaluation-suite-kinds}
+              :working-directory {:type :string}
+              :task-selector {:type :vector :items {:type :string}}
+              :command-steps {:type :vector
+                              :items {:type :map
+                                      :required {:id {:type :string}
+                                                 :command {:type :string}}
+                                      :optional {:cwd {:type :string}
+                                                 :kind {:type :enum :enum :evidence-kinds}
+                                                 :role {:type :enum :enum :evidence-roles}
+                                                 :output-path {:type :string}
+                                                 :timeout-seconds {:type :integer}
+                                                 :parse-json-stdout? {:type :boolean}
+                                                 :result-parser {:type :map
+                                                                 :required {:type {:type :string}}
+                                                                 :optional {:rules {:type :vector
+                                                                                     :items {:type :map
+                                                                                             :required {:regex {:type :string}
+                                                                                                        :status {:type :string}}
+                                                                                             :optional {:stream {:type :identifier}}}}
+                                                                            :captures {:type :vector
+                                                                                       :items {:type :map
+                                                                                               :required {:regex {:type :string}
+                                                                                                          :as {:type :string}}
+                                                                                               :optional {:stream {:type :identifier}
+                                                                                                          :failure-signal? {:type :boolean}}}}
+                                                                            :path-extractors {:type :vector
+                                                                                             :items {:type :map
+                                                                                                     :required {:regex {:type :string}
+                                                                                                                :as {:type :string}}
+                                                                                                     :optional {:stream {:type :identifier}}}}
+                                                                            :suggested-labels {:type :vector :items {:type :string}}}}}}}
+              :metric-mappings {:type :vector
+                                :items {:type :map
+                                        :required {:external-key {:type :string}
+                                                   :bridge-key {:type :string}
+                                                   :kind {:type :string}}
+                                        :optional {}}}
+              :bridge-metrics {:type :vector :items {:type :string}}
+              :output-dir {:type :string}}
+   :optional {:artifact-dir {:type :string}
+              :notes {:type :vector :items {:type :string}}}}
+
+  "evaluation-report"
+  {:type :map
+   :required {:artifact {:type :enum :values ["evaluation-report"]}
+              :evaluation-id {:type :string}
+              :subject {:type :string}
+              :status {:type :enum :enum :workflow-states}
+              :started-at {:type :string}
+              :finished-at {:type :string}
+              :task-results {:type :vector
+                             :items {:type :map
+                                     :required {:id {:type :string}
+                                                :exit-code {:type :integer}
+                                                :status {:type :string}}
+                                     :optional {:kind {:type :enum :enum :evidence-kinds}
+                                                :role {:type :enum :enum :evidence-roles}
+                                                :execution-status {:type :string}
+                                                :evidence-status {:type :string}
+                                                :failure-signals {:type :vector :items {:type :string}}
+                                                :stdout-path {:type :string}
+                                                :stderr-path {:type :string}
+                                                :output-path {:type :string}
+                                                :started-at {:type :string}
+                                                :finished-at {:type :string}
+                                                :duration-ms {:type :integer}
+                                                :timeout-ms {:type :integer}
+                                                :timed-out? {:type :boolean}
+                                                :metrics {:type :map-of
+                                                          :keys {:type :identifier}
+                                                          :values {:type :any}}
+                                                :parsed-metrics {:type :map-of
+                                                                 :keys {:type :identifier}
+                                                                 :values {:type :any}}
+                                                :related-paths {:type :map-of
+                                                                :keys {:type :identifier}
+                                                                :values {:type :any}}
+                                                :failure-summary {:type :map-of
+                                                                  :keys {:type :identifier}
+                                                                  :values {:type :any}}}}}
+              :execution-status {:type :string}
+              :verification-status {:type :string}
+              :external-metrics {:type :map-of :keys {:type :identifier} :values {:type :any}}
+              :bridge-metrics {:type :map-of :keys {:type :identifier} :values {:type :any}}
+              :outcome-labels {:type :vector :items {:type :enum :enum :finding-statuses}}
+              :related-artifacts {:type :vector :items {:type :string}}
+              :notes {:type :vector :items {:type :string}}}
+   :optional {:failure-summary {:type :map-of :keys {:type :identifier} :values {:type :any}}}}
+
+  "evidence-run"
+  {:type :map
+   :required {:artifact {:type :enum :values ["evidence-run"]}
+              :evidence-id {:type :string}
+              :subject {:type :string}
+              :kind {:type :enum :enum :evidence-kinds}
+              :execution-status {:type :string}
+              :evidence-status {:type :string}
+              :exit-code {:type :integer}
+              :stdout-path {:type :string}
+              :stderr-path {:type :string}
+              :started-at {:type :string}
+              :finished-at {:type :string}
+              :duration-ms {:type :integer}
+              :timeout-ms {:type :integer}
+              :timed-out? {:type :boolean}
+              :command {:type :string}
+              :cwd {:type :string}
+              :failure-signals {:type :vector :items {:type :string}}
+              :parsed-metrics {:type :map-of
+                               :keys {:type :identifier}
+                               :values {:type :any}}}
+   :optional {:role {:type :enum :enum :evidence-roles}
+              :output-path {:type :string}
+              :related-paths {:type :map-of
+                              :keys {:type :identifier}
+                              :values {:type :any}}
+              :failure-summary {:type :map-of
+                                :keys {:type :identifier}
+                                :values {:type :any}}
+              :parser {:type :map
+                       :required {:type {:type :string}}
+                       :optional {:suggested-labels {:type :vector :items {:type :string}}}}}}
+
+  "verification-changelog"
+  {:type :map
+   :required {:artifact {:type :enum :values ["verification-changelog"]}
+              :subject {:type :string}
+              :entries {:type :vector
+                        :items {:type :map
+                                :required {:phase {:type :string}
+                                           :kind {:type :enum :enum :verification-changelog-kinds}
+                                           :summary {:type :string}
+                                           :status-effect {:type :enum :enum :status-effects}
+                                           :related-artifacts {:type :vector :items {:type :string}}}
+                                :optional {}}}}
+   :optional {}}
+
+  "feasibility-study"
+  {:type :map
+   :required {:artifact {:type :enum :values ["feasibility-study"]}
+              :study-id {:type :string}
+              :subject {:type :string}
+              :business-domain-fit {:type :enum :enum :feasibility-fits}
+              :computational-core-fit {:type :enum :enum :feasibility-fits}
+              :full-platform-fit {:type :enum :enum :feasibility-fits}
+              :summary {:type :vector :items {:type :string}}
+              :requirements {:type :vector
+                             :items {:type :map
+                                     :required {:id {:type :string}
+                                                :requirement {:type :string}
+                                                :assessment {:type :enum :enum :feasibility-fits}
+                                                :notes {:type :vector :items {:type :string}}}
+                                     :optional {:gaps {:type :vector :items {:type :string}}}}}
+              :blockers {:type :vector :items {:type :string}}
+              :architecture-boundaries {:type :vector :items {:type :string}}
+              :required-pocs {:type :vector :items {:type :string}}
+              :escalations {:type :vector :items {:type :string}}
+              :recommendation {:type :enum :enum :recommendations}}
+   :optional {:notes {:type :vector :items {:type :string}}}}}
+
+ :profile-schema
+ {:type :map
+  :required {:kind {:type :enum :values ["project-profile"]}
+             :project-name {:type :string}
+             :root-path {:type :string}
+             :code-paths {:type :vector :items {:type :string}}
+             :docs-paths {:type :vector :items {:type :string}}
+             :formal-paths {:type :vector :items {:type :string}}
+             :test-paths {:type :vector :items {:type :string}}
+             :artifact-paths {:type :map
+                              :required {:root {:type :string}
+                                         :phases {:type :string}
+                                         :evidence {:type :string}
+                                         :evaluations {:type :string}}
+                              :optional {:policy {:type :string}
+                                         :prompts {:type :string}}}
+             :canonical-commands {:type :vector
+                                  :items {:type :map
+                                          :required {:id {:type :string}
+                                                     :kind {:type :enum :enum :evidence-kinds}
+                                                     :command {:type :string}}
+                                          :optional {:cwd {:type :string}
+                                                     :subject {:type :string}
+                                                     :role {:type :enum :enum :evidence-roles}
+                                                     :output-path {:type :string}
+                                                     :timeout-seconds {:type :integer}
+                                                     :description {:type :string}
+                                                     :result-parser {:type :map
+                                                                     :required {:type {:type :string}}
+                                                                     :optional {:rules {:type :vector
+                                                                                         :items {:type :map
+                                                                                                 :required {:regex {:type :string}
+                                                                                                            :status {:type :string}}
+                                                                                                 :optional {:stream {:type :identifier}}}}
+                                                                                :captures {:type :vector
+                                                                                           :items {:type :map
+                                                                                                   :required {:regex {:type :string}
+                                                                                                              :as {:type :string}}
+                                                                                                   :optional {:stream {:type :identifier}
+                                                                                                              :failure-signal? {:type :boolean}}}}
+                                                                                :path-extractors {:type :vector
+                                                                                                 :items {:type :map
+                                                                                                         :required {:regex {:type :string}
+                                                                                                                    :as {:type :string}}
+                                                                                                         :optional {:stream {:type :identifier}}}}
+                                                                                :suggested-labels {:type :vector :items {:type :string}}}}}}}
+             :subsystems {:type :vector
+                          :items {:type :map
+                                  :required {:name {:type :string}
+                                             :code-globs {:type :vector :items {:type :string}}
+                                             :docs-globs {:type :vector :items {:type :string}}
+                                             :formal-globs {:type :vector :items {:type :string}}
+                                             :test-globs {:type :vector :items {:type :string}}
+                                             :expected-artifacts {:type :vector :items {:type :string}}}
+                                  :optional {:system-category {:type :enum :enum :system-categories}
+                                             :expected-evidence {:type :vector :items {:type :string}}
+                                             :risk-class {:type :enum :enum :risk-classes}
+                                             :owners {:type :vector :items {:type :string}}
+                                             :coupled-with {:type :vector :items {:type :string}}
+                                             :environment-assumptions {:type :vector :items {:type :string}}
+                                             :artifact-root {:type :string}}}}
+             :phases {:type :vector
+                      :items {:type :map
+                              :required {:id {:type :identifier}
+                                         :action {:type :enum :enum :phase-actions}}
+                              :optional {:output-path {:type :string}
+                                         :output-extension {:type :string}
+                                         :artifact-kind {:type :string}
+                                         :template {:type :string}
+                                         :evidence-id {:type :string}
+                                         :cwd {:type :string}
+                                         :notes {:type :vector :items {:type :string}}}}}}
+  :optional {:glossary {:type :map-of :keys {:type :identifier} :values {:type :string}}
+             :verification-policy-path {:type :string}
+             :file-glob-rules {:type :vector
+                               :items {:type :map
+                                       :required {:glob {:type :string}
+                                                  :subsystem {:type :string}}
+                                       :optional {:mechanism-family {:type :string}
+                                                  :concern-class {:type :enum :enum :concern-classes}
+                                                  :contract {:type :string}
+                                                  :formal-module {:type :string}
+                                                  :test-path {:type :string}
+                                                  :risk-note {:type :string}
+                                                  :owner {:type :string}}}}
+             :derived-artifacts {:type :vector
+                                 :items {:type :map
+                                         :required {:name {:type :string}
+                                                    :inputs {:type :vector :items {:type :string}}
+                                                    :outputs {:type :vector :items {:type :string}}}
+                                         :optional {:kind {:type :string}}}}
+             :evaluation-suites {:type :vector
+                                 :items {:type :map
+                                         :required {:id {:type :string}
+                                                    :profile-path {:type :string}}
+                                         :optional {}}}
+             :coupled-subsystems {:type :vector
+                                  :items {:type :map
+                                          :required {:subject {:type :string}
+                                                     :with {:type :vector :items {:type :string}}}
+                                          :optional {:reason {:type :string}}}}
+             :environment-assumptions {:type :vector :items {:type :string}}
+             :prompt-defaults {:type :map-of :keys {:type :identifier} :values {:type :any}}
+             :requirement-sources {:type :vector
+                                   :items {:type :map
+                                           :required {:kind {:type :identifier}
+                                                      :globs {:type :vector :items {:type :string}}
+                                                      :id-scheme {:type :identifier}}
+                                           :optional {}}}}}}}

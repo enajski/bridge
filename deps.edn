@@ -1,0 +1,13 @@
+{:paths ["src" "resources"]
+ :deps {org.clojure/clojure {:mvn/version "1.12.0"}
+        clj-commons/clj-yaml {:mvn/version "1.0.29"}
+        cheshire/cheshire {:mvn/version "5.13.0"}}
+ :aliases {:test {:extra-paths ["test"]
+                  :main-opts ["-m" "bridge.test-runner"]}
+           :bridge {:main-opts ["-m" "bridge.cli"]}
+           :build {:deps {io.github.clojure/tools.build {:mvn/version "0.10.10"}}
+                   :ns-default build}
+           :deploy {:deps {slipset/deps-deploy {:mvn/version "0.2.2"}}
+                    :exec-fn deps-deploy.deps-deploy/deploy
+                    :exec-args {:installer :remote
+                                :artifact "target/sparse-layout.jar"}}}}

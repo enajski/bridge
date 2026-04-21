@@ -1,0 +1,51 @@
+artifact: verification-brief
+subject: rabbitmq-ra-election-and-query-subsystem
+category: actor-message
+summary:
+  - Single Erlang process per server keeps intra-server handling sequential, but message ordering and spawned workers still create protocol risk.
+  - Main review focus is election/pre-vote, commit-index handling, and consistent-query safety.
+concern_classes:
+  - safety
+  - liveness
+  - spec-fidelity
+environment_assumptions:
+  - transport
+mechanism_families:
+  - name: duplicate-vote-counting
+    description: Vote counts are tracked as integers, so duplicated vote messages may be counted twice unless environment assumptions prevent it.
+    concern_class: safety
+    verification_method: model-checkable
+    affected_paths:
+      - artifact/ra_server.erl
+    planned_evidence:
+      - exploration
+      - confirmation
+  - name: commit-index-paper-deviation
+    description: Commit index may regress from stale AppendEntries messages, but apply-time guards and transport ordering assumptions can still preserve safety.
+    concern_class: spec-fidelity
+    verification_method: code-review-only
+    affected_paths:
+      - artifact/ra_server.erl
+    planned_evidence:
+      - confirmation
+      - regression
+  - name: consistent-query-heartbeat-quorum
+    description: Heartbeat-based query release protocol must not acknowledge reads without real quorum support.
+    concern_class: safety
+    verification_method: model-checkable
+    affected_paths:
+      - artifact/ra_server.erl
+    planned_evidence:
+      - conformance
+      - exploration
+co_model_with:
+  - message-delivery-and-ordering-assumptions
+non_goals:
+  - Full WAL implementation semantics
+  - Erlang runtime scheduling internals
+handoff_outputs:
+  - spec/base.tla
+  - spec/Trace.tla
+  - spec/MC_hunt_family2.cfg
+open_questions:
+  - Are duplicate vote messages actually impossible under all supported transport/runtime conditions?

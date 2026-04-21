@@ -1,0 +1,39 @@
+{:kind "project-profile"
+ :project-name "generic-demo"
+ :root-path "."
+ :code-paths ["src"]
+ :docs-paths ["docs"]
+ :formal-paths ["specs"]
+ :test-paths ["test"]
+ :artifact-paths {:root "artifacts"
+                  :phases "artifacts/phases"
+                  :evidence "artifacts/evidence"
+                  :evaluations "artifacts/evaluations"
+                  :prompts "artifacts/prompts"
+                  :policy "artifacts/verification-policy.yaml"}
+ :canonical-commands [{:id "unit"
+                       :kind "unit"
+                       :role "regression"
+                       :command "clojure -M:test"
+                       :description "Run unit test suite"}
+                      {:id "docs-lint"
+                       :kind "custom"
+                       :role "conformance"
+                       :command "echo docs-ok"
+                       :description "Placeholder docs check"}]
+ :subsystems [{:name "core"
+               :code-globs ["src/**/*.clj" "src/**/*.cljc" "src/**/*.ts" "src/**/*.rs"]
+               :docs-globs ["docs/**/*.md"]
+               :formal-globs ["specs/**/*"]
+               :test-globs ["test/**/*"]
+               :expected-artifacts ["change-intent-card" "verification-brief" "completeness-ledger"]
+               :system-category "api"
+               :risk-class "medium"}]
+ :phases [{:id :analyze :action "analyze-change" :output-path "artifacts/phases/analyze.yaml"}
+          {:id :brief :action "init-artifact" :artifact-kind "verification-brief" :output-path "artifacts/phases/brief.yaml"}
+          {:id :prompt :action "render-prompt" :template "repo-inventory" :output-path "artifacts/phases/repo-inventory.md"}]
+ :file-glob-rules [{:glob "src/**/*"
+                    :subsystem "core"
+                    :mechanism-family "implementation-change"
+                    :concern-class "code-level"
+                    :risk-note "Code change may stale docs/tests/formal artifacts."}]}

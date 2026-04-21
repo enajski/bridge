@@ -1,0 +1,16 @@
+{:artifact "verification-brief"
+ :subject "generic-core"
+ :category "api"
+ :summary ["EDN example artifact."]
+ :concern-classes ["code-level"]
+ :environment-assumptions []
+ :mechanism-families [{:name "surface-change"
+                       :description "Generic changed-surface planning."
+                       :concern-class "code-level"
+                       :verification-method "test-verifiable"
+                       :affected-paths ["src"]
+                       :planned-evidence ["unit"]}]
+ :co-model-with []
+ :non-goals []
+ :handoff-outputs ["artifacts/generic-core-brief.edn"]
+ :open-questions []}

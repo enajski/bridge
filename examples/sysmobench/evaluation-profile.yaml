@@ -1,0 +1,107 @@
+artifact: evaluation-profile
+evaluation-id: sysmobench-spin-truth-check
+subject: spin-trace-pipeline
+target-suite: SysMoBench
+suite-kind: benchmark
+working-directory: ../../../SysMoBench
+task-selector:
+  - spin
+command-steps:
+  - id: spin-trace-validation
+    kind: trace-validation
+    role: conformance
+    command: >-
+      source .venv/bin/activate &&
+      METHOD=${BRIDGE_SYSMOBENCH_METHOD:-direct_call} &&
+      MODEL=${BRIDGE_SYSMOBENCH_MODEL:-copilot_claude} &&
+      LATEST=$(ls -dt output/compilation_check/tla/spin/${METHOD}_${MODEL}/* | head -n1) &&
+      SPEC=$LATEST/spin.tla &&
+      CFG=$LATEST/spin.cfg &&
+      sysmobench --task spin --method $METHOD --model $MODEL --metric trace_validation
+      --spec-file "$SPEC" --config-file "$CFG" --with-exist-traces 20
+    result-parser:
+      type: regex-status
+      rules:
+        - stream: stdout
+          regex: 'Trace validation: ✓ PASS'
+          status: passed
+        - stream: stderr
+          regex: 'Trace validation: ✓ PASS'
+          status: passed
+        - stream: stdout
+          regex: 'Trace validation: ✗ FAIL'
+          status: failed
+        - stream: stderr
+          regex: 'Trace validation: ✗ FAIL'
+          status: failed
+      captures:
+        - stream: stdout
+          regex: 'Postcondition TraceAccepted[^\n]*false\.'
+          as: primary-failure
+          failure-signal?: true
+        - stream: stderr
+          regex: 'Postcondition TraceAccepted[^\n]*false\.'
+          as: primary-failure
+          failure-signal?: true
+      path-extractors:
+        - stream: stdout
+          regex: 'Looking for existing specTrace files in: (.+)'
+          as: spec-dir
+        - stream: stdout
+          regex: 'Generated specTrace files in: (.+)'
+          as: spec-dir
+        - stream: stdout
+          regex: 'Using output directory: (.+)'
+          as: output-dir
+        - stream: stdout
+          regex: 'Verifying trace 1/[^:]+: ([^\n]+)'
+          as: sample-trace
+      suggested-labels:
+        - spec-unfaithful
+        - reproduced
+  - id: spin-invariant-verification
+    kind: model-check
+    role: exploration
+    command: >-
+      source .venv/bin/activate &&
+      METHOD=${BRIDGE_SYSMOBENCH_METHOD:-direct_call} &&
+      MODEL=${BRIDGE_SYSMOBENCH_MODEL:-copilot_claude} &&
+      LATEST=$(ls -dt output/compilation_check/tla/spin/${METHOD}_${MODEL}/* | head -n1) &&
+      SPEC=$LATEST/spin.tla &&
+      CFG=$LATEST/spin.cfg &&
+      sysmobench --task spin --method $METHOD --model $MODEL --metric invariant_verification
+      --spec-file "$SPEC" --config-file "$CFG" --tlc-timeout 180
+    result-parser:
+      type: regex-status
+      rules:
+        - stream: stdout
+          regex: 'Semantics Evaluation Results: ✓ PASS'
+          status: passed
+        - stream: stderr
+          regex: 'Semantics Evaluation Results: ✓ PASS'
+          status: passed
+        - stream: stdout
+          regex: 'Semantics Evaluation Results: ✗ FAIL'
+          status: failed
+        - stream: stderr
+          regex: 'Semantics Evaluation Results: ✗ FAIL'
+          status: failed
+      path-extractors:
+        - stream: stdout
+          regex: 'Using output directory: (.+)'
+          as: output-dir
+metric-mappings:
+  - external-key: spin-trace-validation.primary-failure
+    bridge-key: sysmobench/trace-validation-primary-failure
+    kind: external
+bridge-metrics:
+  - artifact-valid-count
+  - artifact-invalid-count
+  - converged-subject-count
+  - regressed-subject-count
+  - open-obligation-count
+output-dir: .bridge/artifacts/evaluations
+artifact-dir: .bridge/artifacts
+notes:
+  - "Example regression profile is canonical truth-check fixture for SysMoBench spin."
+  - "Local project profiles should be compared against this fixture with debug-profile and evidence dry-runs first."
