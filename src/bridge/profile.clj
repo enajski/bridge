@@ -160,7 +160,16 @@
          vec)))
 
 (defn subsystem-by-name [profile subsystem-name]
-  (first (filter #(= subsystem-name (:name %)) (:subsystems profile))))
+  (or (first (filter #(= subsystem-name (:name %)) (:subsystems profile)))
+      (when subsystem-name
+        (let [root (:root-path profile)
+              relativize-path-glob (fn [path]
+                                     (str (bio/relativize-path root path) "/**/*"))]
+          {:name subsystem-name
+           :code-globs (mapv relativize-path-glob (:code-paths profile))
+           :docs-globs (mapv relativize-path-glob (:docs-paths profile))
+           :formal-globs (mapv relativize-path-glob (:formal-paths profile))
+           :test-globs (mapv relativize-path-glob (:test-paths profile))}))))
 
 (defn match-glob-rules [profile changed-files]
   (let [root (:root-path profile)
@@ -237,3 +246,37 @@
                                                  matched-subsystems)
                        :matched-rules (mapv #(select-keys % [:glob :subsystem :mechanism-family :concern-class :contract :formal-module :test-path :risk-note])
                                             matched-rules)})})))
+
+(def ^:dynamic *subsystem-fingerprint-cache* nil)
+
+(defn subsystem-files [profile subsystem]
+  (let [root (:root-path profile)
+        globs (subsystem-rel-globs subsystem)
+        all-files (bio/repo-files root)]
+    (filterv #(any-glob-match? globs %) all-files)))
+
+(defn- subsystem-fingerprint-uncached [profile subsystem]
+  (let [root (:root-path profile)
+        files (subsystem-files profile subsystem)
+        sorted-files (sort files)
+        digest (java.security.MessageDigest/getInstance "SHA-256")]
+    (doseq [f sorted-files]
+      (let [fp (bio/resolve-path root f)
+            mtime (bio/last-modified-ms fp)
+            size (.length (io/file fp))]
+        (.update digest (.getBytes (str f ":" mtime ":" size "\n") "UTF-8"))))
+    (let [hash-bytes (.digest digest)]
+      (->> hash-bytes
+           (map #(format "%02x" %))
+           (apply str)))))
+
+(defn subsystem-fingerprint [profile subsystem]
+  (let [cache *subsystem-fingerprint-cache*]
+    (if cache
+      (let [k [(:source-path profile) (:name subsystem)]]
+        (if-let [hit (get @cache k)]
+          hit
+          (let [res (subsystem-fingerprint-uncached profile subsystem)]
+            (swap! cache assoc k res)
+            res)))
+      (subsystem-fingerprint-uncached profile subsystem))))

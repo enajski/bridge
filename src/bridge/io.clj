@@ -6,7 +6,9 @@
             [clojure.string :as str]
             [clojure.walk :as walk])
   (:import [java.nio.file Files Path Paths]
-           [java.time Instant]))
+           [java.time Instant]
+           [java.security MessageDigest]
+           [java.io FileInputStream]))
 
 (defn now-iso []
   (str (Instant/now)))
@@ -161,3 +163,28 @@
 
 (defn read-resource-edn [resource-path]
   (-> resource-path io/resource slurp edn/read-string))
+
+(defn- shell-lines [root command]
+  (try
+    (let [{:keys [exit out]} (run-shell {:command command
+                                         :cwd root
+                                         :timeout-ms 10000})]
+      (if (zero? exit)
+        (->> (str/split-lines out)
+             (map str/trim)
+             (remove str/blank?)
+             vec)
+        []))
+    (catch Exception _ [])))
+
+(defn repo-files [root]
+  (let [git-dir (io/file root ".git")]
+    (if (and (.exists git-dir) (.isDirectory git-dir))
+      (shell-lines root "git ls-files --cached --others --exclude-standard")
+      (->> (file-seq (io/file root))
+           (filter #(.isFile %))
+           (map #(.getCanonicalPath %))
+           (map #(relativize-path root %))
+           (remove #(or (str/starts-with? % ".git/")
+                        (str/starts-with? % ".bridge/")))
+           vec))))

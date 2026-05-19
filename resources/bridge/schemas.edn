@@ -557,7 +557,8 @@
               :failure-signals {:type :vector :items {:type :string}}
               :parsed-metrics {:type :map-of
                                :keys {:type :identifier}
-                               :values {:type :any}}}
+                               :values {:type :any}}
+              :subsystem-fingerprint {:type :string}}
    :optional {:role {:type :enum :enum :evidence-roles}
               :output-path {:type :string}
               :related-paths {:type :map-of

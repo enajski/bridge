@@ -44,26 +44,41 @@
     (normalize-changed-files profile files)))
 
 (defn- load-policy [profile]
-  (let [policy-path (:verification-policy-path profile)]
+  (let [policy-path (or (:verification-policy-path profile)
+                        (let [default-path (bio/resolve-path (:root-path profile) ".bridge/verification-policy.yaml")]
+                          (when (bio/exists? default-path)
+                            default-path)))]
     (when (and policy-path (bio/exists? policy-path))
       (policy/load-policy policy-path))))
 
-(defn- evidence-results [artifacts]
-  (vec
-   (concat
-    (->> artifacts
-         (filter #(= "evaluation-report" (:artifact %)))
-         (mapcat :task-results))
-    (->> artifacts
-         (filter #(= "evidence-run" (:artifact %)))))))
+(defn- resolve-result-status [result]
+  (let [status (schema/normalize-enum-value (:evidence-status result))]
+    (assoc result :evidence-status
+           (if (and (= "unknown" status)
+                    (or (zero? (:exit-code result))
+                        (= 0 (:exit result))
+                        (= "executed" (:execution-status result))))
+             "passed"
+             status))))
 
-(defn- evidence-statuses-by-kind [artifacts]
+(defn- evidence-results [profile artifacts]
+  (->> (concat
+        (->> artifacts
+             (filter #(= "evaluation-report" (:artifact %)))
+             (mapcat :task-results))
+        (->> artifacts
+             (filter #(= "evidence-run" (:artifact %)))
+             (remove #(evidence/stale-evidence-run? profile %))))
+       (map resolve-result-status)
+       vec))
+
+(defn- evidence-statuses-by-kind [profile artifacts]
   (reduce (fn [acc result]
             (if-let [kind (some-> (:kind result) evidence/normalize-evidence-kind)]
               (update acc kind (fnil conj []) (schema/normalize-enum-value (:evidence-status result)))
               acc))
           {}
-          (evidence-results artifacts)))
+          (evidence-results profile artifacts)))
 
 (defn- obligation-state [statuses-by-kind obligation]
   (let [required-kinds (map evidence/normalize-evidence-kind (:required-evidence obligation))
@@ -99,7 +114,7 @@
      :commands (command-suggestions profile obligation)}))
 
 (defn- transient-obligations [profile artifacts intent]
-  (let [statuses-by-kind (evidence-statuses-by-kind artifacts)
+  (let [statuses-by-kind (evidence-statuses-by-kind profile artifacts)
         structured (:missing-obligations-structured intent)
         plain (:missing-obligations intent)]
     (mapv (fn [idx obligation]
@@ -107,8 +122,8 @@
           (range)
           structured)))
 
-(defn- completed-evidence [artifacts]
-  (->> (evidence-results artifacts)
+(defn- completed-evidence [profile artifacts]
+  (->> (evidence-results profile artifacts)
        (keep (fn [result]
                (let [status (schema/normalize-enum-value (:evidence-status result))]
                  (when (= "passed" status)
@@ -169,7 +184,7 @@
       :failed-obligations failed-obligations
       :completed-obligations completed-obligations
       :stale-artifacts stale-artifacts
-      :completed-evidence (completed-evidence artifacts)
+      :completed-evidence (completed-evidence profile artifacts)
       :subject-problems subject-problems*
       :convergence-summary (select-keys convergence
                                         [:converged-subject-count :regressed-subject-count])

@@ -78,3 +78,94 @@
     (is (= "execution-failed" (:execution-status result)))
     (is (true? (:timed-out? result)))
     (is (= 124 (:exit-code result)))))
+
+(deftest metadata-fingerprint-behavior
+  (let [dir (temp-dir)
+        sub-dir (io/file dir "src")
+        _ (.mkdirs sub-dir)
+        f1 (io/file sub-dir "a.clj")
+        f2 (io/file sub-dir "b.clj")]
+    (spit f1 "content-a")
+    (spit f2 "content-b")
+    (let [profile {:root-path (.getAbsolutePath dir)
+                   :source-path (str (io/file dir "profile.edn"))
+                   :code-paths ["src"]
+                   :docs-paths []
+                   :formal-paths []
+                   :test-paths []
+                   :subsystems [{:name "core"
+                                 :code-globs ["src/**/*.clj"]
+                                 :docs-globs []
+                                 :formal-globs []
+                                 :test-globs []}]}
+          subsystem (profile/subsystem-by-name profile "core")
+          fp-1 (profile/subsystem-fingerprint profile subsystem)
+          _ (Thread/sleep 10)
+          _ (spit f1 "content-a-edited")
+          fp-2 (profile/subsystem-fingerprint profile subsystem)
+          _ (io/delete-file f2)
+          fp-3 (profile/subsystem-fingerprint profile subsystem)
+          f3 (io/file sub-dir "c.clj")
+          _ (spit f3 "content-c")
+          fp-4 (profile/subsystem-fingerprint profile subsystem)]
+      (is (string? fp-1))
+      (is (not= fp-1 fp-2))
+      (is (not= fp-2 fp-3))
+      (is (not= fp-3 fp-4)))))
+
+(deftest staleness-check
+  (let [dir (temp-dir)
+        sub-dir (io/file dir "src")
+        _ (.mkdirs sub-dir)
+        f1 (io/file sub-dir "a.clj")]
+    (spit f1 "content-a")
+    (let [profile {:root-path (.getAbsolutePath dir)
+                   :source-path (str (io/file dir "profile.edn"))
+                   :code-paths ["src"]
+                   :docs-paths []
+                   :formal-paths []
+                   :test-paths []
+                   :subsystems [{:name "core"
+                                 :code-globs ["src/**/*.clj"]
+                                 :docs-globs []
+                                 :formal-globs []
+                                 :test-globs []}]}
+          subsystem (profile/subsystem-by-name profile "core")
+          fp (profile/subsystem-fingerprint profile subsystem)
+          ev-run {:artifact "evidence-run"
+                  :evidence-id "test"
+                  :subject "core"
+                  :kind "unit-tests"
+                  :subsystem-fingerprint fp}]
+      (is (false? (evidence/stale-evidence-run? profile ev-run)))
+      (Thread/sleep 10)
+      (spit f1 "content-a-edited")
+      (is (true? (evidence/stale-evidence-run? profile ev-run)))
+      (is (true? (evidence/stale-evidence-run? profile (dissoc ev-run :subsystem-fingerprint)))))))
+
+(deftest virtual-subsystem-fallback-staleness
+  (let [dir (temp-dir)
+        sub-dir (io/file dir "src")
+        _ (.mkdirs sub-dir)
+        f1 (io/file sub-dir "a.clj")]
+    (spit f1 "content-a")
+    (let [root-path (.getAbsolutePath dir)
+          profile {:root-path root-path
+                   :source-path (str (io/file dir "profile.edn"))
+                   :code-paths [(str (io/file root-path "src"))]
+                   :docs-paths []
+                   :formal-paths []
+                   :test-paths []
+                   :subsystems []}
+          subsystem (profile/subsystem-by-name profile "bridge")
+          fp (profile/subsystem-fingerprint profile subsystem)
+          ev-run {:artifact "evidence-run"
+                  :evidence-id "test"
+                  :subject "bridge"
+                  :kind "unit-tests"
+                  :subsystem-fingerprint fp}]
+      (is (not= "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" fp))
+      (is (false? (evidence/stale-evidence-run? profile ev-run)))
+      (Thread/sleep 10)
+      (spit f1 "content-a-edited")
+      (is (true? (evidence/stale-evidence-run? profile ev-run))))))

@@ -1,5 +1,6 @@
 (ns bridge.evidence
   (:require [bridge.io :as bio]
+            [bridge.profile :as profile]
             [bridge.schema :as schema]
             [cheshire.core :as json]
             [clojure.edn :as edn]
@@ -284,30 +285,33 @@
     (cond-> {:type (str (:type parser))}
       (:suggested-labels parser) (assoc :suggested-labels (vec (map str (:suggested-labels parser)))))))
 
-(defn- evidence-run-artifact [plan parsed result started-at finished-at duration-ms]
-  (cond-> {:artifact "evidence-run"
-           :evidence-id (:id plan)
-           :subject (str (:subject plan))
-           :kind (schema/normalize-enum-value (:kind plan))
-           :execution-status (execution-status (:exit result))
-           :evidence-status (:evidence-status parsed)
-           :exit-code (:exit result)
-           :stdout-path (:stdout-path plan)
-           :stderr-path (:stderr-path plan)
-           :started-at started-at
-           :finished-at finished-at
-           :duration-ms duration-ms
-           :timeout-ms (:timeout-ms plan)
-           :timed-out? (boolean (:timed-out? result))
-           :command (:command plan)
-           :cwd (:cwd plan)
-           :failure-signals (vec (:failure-signals parsed))
-           :parsed-metrics (or (:parsed-metrics parsed) {})}
-    (:role plan) (assoc :role (schema/normalize-enum-value (:role plan)))
-    (:output-path plan) (assoc :output-path (:output-path plan))
-    (:related-paths parsed) (assoc :related-paths (:related-paths parsed))
-    (:failure-summary parsed) (assoc :failure-summary (:failure-summary parsed))
-    (parser-metadata (:result-parser plan)) (assoc :parser (parser-metadata (:result-parser plan)))))
+(defn- evidence-run-artifact [profile plan parsed result started-at finished-at duration-ms]
+  (let [subsystem (profile/subsystem-by-name profile (:subject plan))
+        fingerprint (when subsystem (profile/subsystem-fingerprint profile subsystem))]
+    (cond-> {:artifact "evidence-run"
+             :evidence-id (:id plan)
+             :subject (str (:subject plan))
+             :kind (schema/normalize-enum-value (:kind plan))
+             :execution-status (execution-status (:exit result))
+             :evidence-status (:evidence-status parsed)
+             :exit-code (:exit result)
+             :stdout-path (:stdout-path plan)
+             :stderr-path (:stderr-path plan)
+             :started-at started-at
+             :finished-at finished-at
+             :duration-ms duration-ms
+             :timeout-ms (:timeout-ms plan)
+             :timed-out? (boolean (:timed-out? result))
+             :command (:command plan)
+             :cwd (:cwd plan)
+             :failure-signals (vec (:failure-signals parsed))
+             :parsed-metrics (or (:parsed-metrics parsed) {})
+             :subsystem-fingerprint (or fingerprint "")}
+      (:role plan) (assoc :role (schema/normalize-enum-value (:role plan)))
+      (:output-path plan) (assoc :output-path (:output-path plan))
+      (:related-paths parsed) (assoc :related-paths (:related-paths parsed))
+      (:failure-summary parsed) (assoc :failure-summary (:failure-summary parsed))
+      (parser-metadata (:result-parser plan)) (assoc :parser (parser-metadata (:result-parser plan))))))
 
 (defn- validate-artifact! [artifact]
   (let [result (schema/validate-artifact-data artifact)]
@@ -336,7 +340,7 @@
                 duration-ms (- (System/currentTimeMillis) started-ms)
                 parsed (parse-result {:result-parser (:result-parser plan)} (:out result) (:err result))
                 artifact (validate-artifact!
-                           (evidence-run-artifact plan parsed result started-at finished-at duration-ms))]
+                           (evidence-run-artifact profile plan parsed result started-at finished-at duration-ms))]
             (bio/write-text (:stdout-path plan) (:out result))
             (bio/write-text (:stderr-path plan) (:err result))
             (bio/write-data (:artifact-path plan) artifact)
@@ -354,3 +358,13 @@
                              :error (ex-message e)
                              :data (ex-data e)}
                             e))))))))
+
+(defn stale-evidence-run? [profile evidence-run]
+  (if-not profile
+    false
+    (let [subsystem (profile/subsystem-by-name profile (:subject evidence-run))]
+      (if-not subsystem
+        true
+        (let [stored-fp (:subsystem-fingerprint evidence-run)
+              current-fp (profile/subsystem-fingerprint profile subsystem)]
+          (not= stored-fp current-fp))))))

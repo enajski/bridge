@@ -81,7 +81,10 @@
 (defn load-profile+policy [opts]
   (let [profile (profile/load-profile (profile-option opts))
         policy-path (or (:policy opts)
-                        (:verification-policy-path profile))
+                        (:verification-policy-path profile)
+                        (let [default-path (bio/resolve-path (:root-path profile) ".bridge/verification-policy.yaml")]
+                          (when (bio/exists? default-path)
+                            default-path)))
         policy (when (and policy-path (bio/exists? policy-path))
                  (policy/load-policy policy-path))]
     {:profile profile :policy policy}))
@@ -176,6 +179,7 @@
          {:kind "project-profile"
           :project-name project-name
           :root-path root-path
+          :verification-policy-path ".bridge/verification-policy.yaml"
           :code-paths ["src"]
           :docs-paths ["docs"]
           :test-paths ["test"]
@@ -573,22 +577,23 @@
   (println help-text))
 
 (defn -main [& args]
-  (try
-    (let [{:keys [command options]} (parsed-command args)]
-      (case command
-        nil (print-help!)
-        "help" (print-help!)
-        "check" (print-status-command! command options (:bridge-check (dispatch args)))
-        "next" (print-next-command! options (:bridge-next (dispatch args)))
-        "init" (print-init-command! (dispatch args))
-        "install-hooks" (print-install-hooks-command! (dispatch args))
-        (println-data (dispatch args))))
-    (catch Exception e
-      (binding [*out* *err*]
-        (println (ex-message e))
-        (when-let [data (ex-data e)]
-          (pprint/pprint data)
-          (when (:help data)
-            (println)
-            (print-help!))))
-      (*exit-fn* 1))))
+  (binding [profile/*subsystem-fingerprint-cache* (atom {})]
+    (try
+      (let [{:keys [command options]} (parsed-command args)]
+        (case command
+          nil (print-help!)
+          "help" (print-help!)
+          "check" (print-status-command! command options (:bridge-check (dispatch args)))
+          "next" (print-next-command! options (:bridge-next (dispatch args)))
+          "init" (print-init-command! (dispatch args))
+          "install-hooks" (print-install-hooks-command! (dispatch args))
+          (println-data (dispatch args))))
+      (catch Exception e
+        (binding [*out* *err*]
+          (println (ex-message e))
+          (when-let [data (ex-data e)]
+            (pprint/pprint data)
+            (when (:help data)
+              (println)
+              (print-help!))))
+        (*exit-fn* 1)))))

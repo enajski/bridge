@@ -117,8 +117,7 @@
           (keep (fn [k]
                   (let [level (normalize-policy-value (get required-evidence k))]
                     (cond
-                      (and (= "required" level)
-                           (not (contains? changed-evidence k)))
+                      (= "required" level)
                       (obligation-message (if (contains? existing-evidence k)
                                             :revalidate
                                             :missing)

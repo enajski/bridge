@@ -131,8 +131,7 @@
          (keep (fn [k]
                  (let [level (policy/normalize-policy-value (get required-evidence k))]
                    (cond
-                     (and (= "required" level)
-                          (not (contains? changed-evidence k)))
+                     (= "required" level)
                      {:kind (if (contains? existing-evidence k)
                               "policy-evidence-rerun"
                               "policy-evidence-missing")

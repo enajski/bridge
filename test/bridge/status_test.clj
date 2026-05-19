@@ -118,7 +118,8 @@
                      :command "echo PASS"
                      :cwd "."
                      :failure-signals []
-                     :parsed-metrics {}})
+                     :parsed-metrics {}
+                     :subsystem-fingerprint "mockfp123"})
     (bio/write-data (str (io/file failing-dir "trace.yaml"))
                     {:artifact "evidence-run"
                      :evidence-id "trace"
@@ -137,7 +138,8 @@
                      :command "echo FAIL"
                      :cwd "."
                      :failure-signals ["TraceAccepted false"]
-                     :parsed-metrics {}})
+                     :parsed-metrics {}
+                     :subsystem-fingerprint "mockfp123"})
     (is (= "converged" (get-in (status/convergence-report passing-dir)
                                [:subjects "planner-runtime" :workflow-state])))
     (is (= "regressed" (get-in (status/convergence-report failing-dir)

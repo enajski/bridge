@@ -33,22 +33,34 @@
 (defn- evidence-run? [artifact]
   (= "evidence-run" (:artifact artifact)))
 
-(defn- evidence-results [artifacts]
-  (vec
-   (concat
-    (->> artifacts
-         (filter evaluation-report?)
-         (mapcat :task-results))
-    (->> artifacts
-         (filter evidence-run?)))))
+(defn- resolve-result-status [result]
+  (let [status (schema/normalize-enum-value (:evidence-status result))]
+    (assoc result :evidence-status
+           (if (and (= "unknown" status)
+                    (or (zero? (:exit-code result))
+                        (= 0 (:exit result))
+                        (= "executed" (:execution-status result))))
+             "passed"
+             status))))
 
-(defn- evidence-statuses-by-kind [artifacts]
+(defn- evidence-results [profile artifacts]
+  (->> (concat
+        (->> artifacts
+             (filter evaluation-report?)
+             (mapcat :task-results))
+        (->> artifacts
+             (filter evidence-run?)
+             (remove #(evidence/stale-evidence-run? profile %))))
+       (map resolve-result-status)
+       vec))
+
+(defn- evidence-statuses-by-kind [profile artifacts]
   (reduce (fn [acc result]
             (if-let [kind (some-> (:kind result) evidence/normalize-evidence-kind)]
               (update acc kind (fnil conj []) (schema/normalize-enum-value (:evidence-status result)))
               acc))
           {}
-          (evidence-results artifacts)))
+          (evidence-results profile artifacts)))
 
 (defn- plain-obligations [artifact]
   (mapv (fn [summary]
@@ -83,8 +95,8 @@
         "open")
       :else "open")))
 
-(defn- obligation-closures [artifacts]
-  (let [statuses-by-kind (evidence-statuses-by-kind artifacts)]
+(defn- obligation-closures [profile artifacts]
+  (let [statuses-by-kind (evidence-statuses-by-kind profile artifacts)]
     (->> (all-obligations artifacts)
          (mapv (fn [obligation]
                  (assoc obligation
@@ -96,8 +108,8 @@
                                                            "open" "unknown"
                                                            "unknown")}))))))
 
-(defn- verification-status [artifacts]
-  (let [statuses (map #(schema/normalize-enum-value (:evidence-status %)) (evidence-results artifacts))]
+(defn- verification-status [profile artifacts]
+  (let [statuses (map #(schema/normalize-enum-value (:evidence-status %)) (evidence-results profile artifacts))]
     (cond
       (some #{"failed"} statuses) "failed"
       (and (seq statuses) (every? #{"passed"} statuses)) "passed"
@@ -106,23 +118,23 @@
           (some #{"unknown"} statuses)) "partial"
       :else "unknown")))
 
-(defn- execution-status [artifacts]
-  (let [statuses (map #(schema/normalize-enum-value (:execution-status %)) (evidence-results artifacts))]
+(defn- execution-status [profile artifacts]
+  (let [statuses (map #(schema/normalize-enum-value (:execution-status %)) (evidence-results profile artifacts))]
     (when (seq statuses)
       (if (every? #{"executed"} statuses)
         "executed"
         "execution-failed"))))
 
-(defn subject-summary [artifacts]
+(defn subject-summary [profile artifacts]
   (let [states (keep explicit-workflow-state artifacts)
         effects (mapcat changelog-effects artifacts)
         base-derived (reduce merge-state "draft" (concat states effects))
-        closures (obligation-closures artifacts)
+        closures (obligation-closures profile artifacts)
         failed-obligation-count (count (filter #(= "executed-failed" (get-in % [:closure :state])) closures))
         open-obligation-count (count (filter #(= "open" (get-in % [:closure :state])) closures))
-        verification-status* (verification-status artifacts)
-        execution-status* (execution-status artifacts)
-        evidence-present? (seq (evidence-results artifacts))
+        verification-status* (verification-status profile artifacts)
+        execution-status* (execution-status profile artifacts)
+        evidence-present? (seq (evidence-results profile artifacts))
         workflow-state (cond
                          (or (= "failed" verification-status*)
                              (= "execution-failed" execution-status*)
@@ -151,11 +163,11 @@
   ([artifact-root]
    (let [items (artifacts/find-artifacts artifact-root)
          by-subject (->> items
-                         (group-by artifacts/subject-of)
-                         (remove (comp nil? key))
-                         (into {}))
+                          (group-by artifacts/subject-of)
+                          (remove (comp nil? key))
+                          (into {}))
          summaries (into {}
-                         (map (fn [[subject xs]] [subject (subject-summary xs)]))
+                         (map (fn [[subject xs]] [subject (subject-summary nil xs)]))
                          by-subject)]
      {:artifact-root artifact-root
       :subjects summaries
@@ -165,7 +177,7 @@
    (let [items (artifacts/find-artifacts artifact-root)
          by-subject (artifacts/group-by-canonical-subject profile items)
          summaries (into {}
-                         (map (fn [[subject xs]] [subject (subject-summary xs)]))
+                         (map (fn [[subject xs]] [subject (subject-summary profile xs)]))
                          by-subject)]
      {:artifact-root artifact-root
       :subjects summaries
