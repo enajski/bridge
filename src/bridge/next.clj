@@ -44,8 +44,7 @@
     (normalize-changed-files profile files)))
 
 (defn- load-policy [profile]
-  (let [policy-path (or (:verification-policy-path profile)
-                        (get-in profile [:artifact-paths :policy]))]
+  (let [policy-path (:verification-policy-path profile)]
     (when (and policy-path (bio/exists? policy-path))
       (policy/load-policy policy-path))))
 

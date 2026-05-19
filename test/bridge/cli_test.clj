@@ -24,6 +24,16 @@
     (is (not (str/includes? help-output "{:help")))
     (is (= help-output default-output))))
 
+(deftest cli-main-prints-help-for-unknown-command
+  (let [sw (java.io.StringWriter.)]
+    (binding [cli/*exit-fn* (fn [_] nil)
+              *err* sw]
+      (cli/-main "wat"))
+    (let [output (str sw)]
+    (is (str/includes? output "Unknown command"))
+    (is (str/includes? output "Stable commands:"))
+    (is (str/includes? output "Experimental commands:")))))
+
 (deftest cli-happy-path-init-stub-validate
   (let [dir (temp-dir)
         profile-path (str (io/file dir "profile.edn"))
@@ -37,6 +47,7 @@
         profile-path (str (io/file dir "profile.edn"))]
     (is (= profile-path (:written (cli/dispatch ["init-profile" "--path" profile-path]))))
     (let [profile-data (bio/read-data profile-path)]
+      (is (= ["core"] (mapv :name (:subsystems profile-data))))
       (is (= ".bridge/ephemeral" (get-in profile-data [:artifact-paths :root])))
       (is (= ".bridge/ephemeral/phases" (get-in profile-data [:artifact-paths :phases])))
       (is (= ".bridge/ephemeral/evidence" (get-in profile-data [:artifact-paths :evidence])))

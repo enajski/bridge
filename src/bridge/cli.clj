@@ -51,6 +51,10 @@
 (defn println-data [data]
   (pprint/pprint data))
 
+(def ^:dynamic *exit-fn*
+  (fn [status]
+    (System/exit status)))
+
 (defn require-option [opts k]
   (or (get opts k)
       (throw (ex-info "Missing required option" {:option k}))))
@@ -77,8 +81,7 @@
 (defn load-profile+policy [opts]
   (let [profile (profile/load-profile (profile-option opts))
         policy-path (or (:policy opts)
-                        (:verification-policy-path profile)
-                        (get-in profile [:artifact-paths :policy]))
+                        (:verification-policy-path profile))
         policy (when (and policy-path (bio/exists? policy-path))
                  (policy/load-policy policy-path))]
     {:profile profile :policy policy}))
@@ -152,40 +155,6 @@
      ""
      "Formal verification, evaluation adapters, and generated formal linkage are experimental and opt-in."]))
 
-(defn default-profile [project-name]
-  {:kind "project-profile"
-   :project-name project-name
-   :root-path ".."
-   :code-paths ["src"]
-   :docs-paths ["docs"]
-   :test-paths ["test"]
-   :artifact-paths {:root ".bridge/ephemeral"
-                    :phases ".bridge/ephemeral/phases"
-                    :evidence ".bridge/ephemeral/evidence"
-                    :evaluations ".bridge/ephemeral/evaluations"
-                    :prompts ".bridge/ephemeral/prompts"
-                    :policy ".bridge/verification-policy.yaml"}
-   :verification-policy-path ".bridge/verification-policy.yaml"
-   :canonical-commands [{:id "unit"
-                         :kind "unit"
-                         :role "regression"
-                         :command "clojure -M:test"
-                         :description "Run the project unit test suite"}]
-   :subsystems [{:name "core"
-                 :code-globs ["src/**/*"]
-                 :docs-globs ["docs/**/*"]
-                 :test-globs ["test/**/*"]
-                 :expected-artifacts ["change-intent-card" "verification-brief" "completeness-ledger"]
-                 :expected-evidence ["unit"]
-                 :system-category "api"
-                 :risk-class "medium"}]
-   :phases []
-   :file-glob-rules [{:glob "src/**/*"
-                      :subsystem "core"
-                      :mechanism-family "implementation-change"
-                      :concern-class "code-level"
-                      :risk-note "Code change may stale docs, tests, or verification artifacts."}]})
-
 (defn default-policy [project-name]
   {:artifact "verification-policy"
    :policy-id (str project-name "-bridge-v1")
@@ -215,7 +184,14 @@
                            :evidence ".bridge/ephemeral/evidence"
                            :evaluations ".bridge/ephemeral/evaluations"}
           :canonical-commands []
-          :subsystems []
+          :subsystems [{:name "core"
+                        :code-globs ["src/**/*"]
+                        :docs-globs ["docs/**/*"]
+                        :test-globs ["test/**/*"]
+                        :expected-artifacts ["change-intent-card" "verification-brief" "completeness-ledger"]
+                        :expected-evidence ["unit"]
+                        :system-category "api"
+                        :risk-class "medium"}]
           :phases []}))
 
 (defn append-gitignore-entry! [path entry]
@@ -564,12 +540,15 @@
 (defn- print-install-hooks-command! [result]
   (println (str "✅ Installed `bb bridge check --profile " (:profile result) "` into " (:installed result))))
 
+(defn- print-help! []
+  (println help-text))
+
 (defn -main [& args]
   (try
     (let [{:keys [command options]} (parsed-command args)]
       (case command
-        nil (println help-text)
-        "help" (println help-text)
+        nil (print-help!)
+        "help" (print-help!)
         "check" (print-status-command! command options (:bridge-check (dispatch args)))
         "next" (print-next-command! options (:bridge-next (dispatch args)))
         "init" (print-init-command! (dispatch args))
@@ -579,5 +558,8 @@
       (binding [*out* *err*]
         (println (ex-message e))
         (when-let [data (ex-data e)]
-          (pprint/pprint data)))
-      (System/exit 1))))
+          (pprint/pprint data)
+          (when (:help data)
+            (println)
+            (print-help!))))
+      (*exit-fn* 1))))
