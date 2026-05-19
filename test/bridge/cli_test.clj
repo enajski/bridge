@@ -251,3 +251,35 @@
       (is (= "attention-required"
              (get-in (cli/dispatch ["check" "--changed-file" "src/runtime/core.clj"])
                      [:bridge-check :status]))))))
+
+(deftest cli-init-profile-infers-commands
+  (let [dir (temp-dir)
+        bb-path (io/file dir "bb.edn")
+        deps-path (io/file dir "deps.edn")
+        profile-path (str (io/file dir "profile.edn"))]
+    ;; Case 1: no files present
+    (cli/dispatch ["init-profile" "--path" profile-path])
+    (is (= [] (:canonical-commands (bio/read-data profile-path))))
+
+    ;; Case 2: bb.edn present with test task
+    (spit bb-path "{:tasks {test {:task (runner/-main)}}}")
+    (cli/dispatch ["init-profile" "--path" profile-path])
+    (is (= [{:id "unit" :kind "unit" :role "regression" :command "bb test" :description "Run unit tests"}]
+           (:canonical-commands (bio/read-data profile-path))))
+
+    ;; Case 3: bb.edn present without test task
+    (spit bb-path "{:tasks {other {:task (runner/-main)}}}")
+    (cli/dispatch ["init-profile" "--path" profile-path])
+    (is (= [] (:canonical-commands (bio/read-data profile-path))))
+
+    ;; Case 4: deps.edn present with :test alias
+    (spit bb-path "{}") ;; disable bb.edn test task
+    (spit deps-path "{:aliases {:test {:extra-paths [\"test\"]}}}")
+    (cli/dispatch ["init-profile" "--path" profile-path])
+    (is (= [{:id "unit" :kind "unit" :role "regression" :command "clojure -M:test" :description "Run unit tests"}]
+           (:canonical-commands (bio/read-data profile-path))))
+
+    ;; Case 5: deps.edn present without :test alias
+    (spit deps-path "{:aliases {:other {}}}")
+    (cli/dispatch ["init-profile" "--path" profile-path])
+    (is (= [] (:canonical-commands (bio/read-data profile-path))))))

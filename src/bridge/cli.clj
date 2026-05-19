@@ -171,7 +171,7 @@
                              :required-fields ["rationale" "owner"]}
             :notes ["Default bootstrap policy. Customize scope and evidence levels for this project."]}]})
 
-(defn init-profile-data [project-name root-path]
+(defn init-profile-data [project-name root-path canonical-commands]
   (merge (schema/stub-profile)
          {:kind "project-profile"
           :project-name project-name
@@ -183,7 +183,7 @@
                            :phases ".bridge/ephemeral/phases"
                            :evidence ".bridge/ephemeral/evidence"
                            :evaluations ".bridge/ephemeral/evaluations"}
-          :canonical-commands []
+          :canonical-commands canonical-commands
           :subsystems [{:name "core"
                         :code-globs ["src/**/*"]
                         :docs-globs ["docs/**/*"]
@@ -204,11 +204,38 @@
                                 "\n"))))
   path)
 
+(defn infer-canonical-commands [project-root]
+  (let [bb-path (io/file project-root "bb.edn")
+        deps-path (io/file project-root "deps.edn")
+        bb-cmd (when (bio/exists? (str bb-path))
+                 (try
+                   (let [bb-data (bio/read-data (str bb-path))]
+                     (when (some (fn [k] (= "test" (name k))) (keys (:tasks bb-data)))
+                       "bb test"))
+                   (catch Exception _ nil)))
+        deps-cmd (when (bio/exists? (str deps-path))
+                   (try
+                     (let [deps-data (bio/read-data (str deps-path))]
+                       (when (contains? (:aliases deps-data) :test)
+                         "clojure -M:test"))
+                     (catch Exception _ nil)))
+        inferred-cmd (or bb-cmd deps-cmd)]
+    (if inferred-cmd
+      [{:id "unit"
+        :kind "unit"
+        :role "regression"
+        :command inferred-cmd
+        :description "Run unit tests"}]
+      [])))
+
 (defn command-init-profile [opts]
   (let [path (require-option opts :path)
         project-name (or (:project-name opts) "example-project")
         root-path (or (:root-path opts) ".")
-        data (init-profile-data project-name root-path)]
+        profile-parent (io/file (or (.getParentFile (io/file (bio/absolute-path path))) "."))
+        project-root (io/file profile-parent root-path)
+        canonical-cmds (infer-canonical-commands project-root)
+        data (init-profile-data project-name root-path canonical-cmds)]
     (bio/write-data path data)
     {:written path}))
 
