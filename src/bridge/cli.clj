@@ -88,36 +88,69 @@
     "\n"
     ["bridge CLI"
      ""
-     "Commands:"
+     "Stable commands:"
      "  init [--root DIR]"
+     "      Create .bridge/profile.edn and verification-policy.yaml."
      "  init-profile --path FILE"
+     "      Write a starter project profile."
      "  install-hooks [--profile FILE] [--root DIR]"
-     "  list-templates"
-     "  render-prompt --template ID --profile FILE [--out FILE] [--changed-file PATH]..."
+     "      Install a Bridge pre-push check hook."
      "  validate-artifact FILE"
+     "      Validate one Bridge artifact or profile."
      "  validate-dir DIR"
+     "      Validate all artifacts in a directory."
      "  summary --profile FILE"
+     "      Summarize configured subjects and artifacts."
      "  debug-profile --profile FILE [--changed-file PATH]..."
-     "  query --profile FILE SUBJECT [FIELD]"
-     "  coverage --profile FILE"
-     "  stub-artifact --kind KIND --out FILE"
-     "  missing-artifacts --profile FILE"
+     "      Show normalized profile paths, globs, and matches."
      "  analyze-change --profile FILE --changed-file PATH [--changed-file PATH]... [--out FILE]"
-     "  generate-brief --profile FILE [--subsystem NAME] [--changed-file PATH]... [--out FILE]"
-     "  generate-observable --profile FILE [--subsystem NAME] [--changed-file PATH]... [--out FILE]"
-     "  plan-seed --profile FILE [--changed-file PATH]... [--out FILE]"
+     "      Build a change-intent card from changed files."
      "  check [--profile FILE] [--changed-file PATH]... [--format text|edn] [--no-color]"
+     "      Print status for automation and exit nonzero on issues."
      "  next [--profile FILE] [--changed-file PATH]... [--tui auto|always|never] [--no-color]"
-     "  convergence --profile FILE"
-     "  completeness --profile FILE"
-     "  init-phase --profile FILE --phase ID [--out FILE]"
-     "  run-phase --profile FILE --phase ID [--changed-file PATH]... [--out FILE]"
-     "  run-phases --profile FILE [--phase ID]... [--changed-file PATH]... [--continue-on-error]"
+     "      Show the next verification work for a repo."
      "  list-evidence --profile FILE"
+     "      List runnable evidence commands from the profile."
      "  run-evidence --profile FILE --id ID [--subject SUBJECT] [--out FILE] [--out-dir DIR] [--timeout-seconds N] [--dry-run]"
+     "      Run one evidence command and record a receipt."
+     ""
+     "Experimental commands:"
+     "  list-templates"
+     "      List available prompt templates."
+     "  render-prompt --template ID --profile FILE [--out FILE] [--changed-file PATH]..."
+     "      Render an agent prompt from a profile."
+     "  query --profile FILE SUBJECT [FIELD]"
+     "      Query existing artifacts by subject and field."
+     "  coverage --profile FILE"
+     "      Summarize artifact coverage against profile expectations."
+     "  stub-artifact --kind KIND --out FILE"
+     "      Write a schema-shaped artifact stub."
+     "  missing-artifacts --profile FILE"
+     "      List expected artifacts that are not present."
+     "  generate-brief --profile FILE [--subsystem NAME] [--changed-file PATH]... [--out FILE]"
+     "      Generate a verification brief draft."
+     "  generate-observable --profile FILE [--subsystem NAME] [--changed-file PATH]... [--out FILE]"
+     "      Generate an observable-contract draft."
+     "  plan-seed --profile FILE [--changed-file PATH]... [--out FILE]"
+     "      Generate a phase handoff seed."
+     "  convergence --profile FILE"
+     "      Report workflow convergence from artifacts."
+     "  completeness --profile FILE"
+     "      Summarize completeness ledgers."
+     "  init-phase --profile FILE --phase ID [--out FILE]"
+     "      Initialize a configured workflow phase output."
+     "  run-phase --profile FILE --phase ID [--changed-file PATH]... [--out FILE]"
+     "      Run one configured workflow phase."
+     "  run-phases --profile FILE [--phase ID]... [--changed-file PATH]... [--continue-on-error]"
+     "      Run configured workflow phases."
      "  eval --profile FILE [--out FILE]"
+     "      Run an evaluation profile."
      "  feasibility-report --artifact FILE --out FILE"
-     "  sysmobench-adapt --task-yaml FILE --out-dir DIR [--invariants FILE]"]))
+     "      Render a feasibility-study report."
+     "  sysmobench-adapt --task-yaml FILE --out-dir DIR [--invariants FILE]"
+     "      Convert a SysMoBench task into Bridge artifacts."
+     ""
+     "Formal verification, evaluation adapters, and generated formal linkage are experimental and opt-in."]))
 
 (defn default-profile [project-name]
   {:kind "project-profile"
@@ -125,13 +158,12 @@
    :root-path ".."
    :code-paths ["src"]
    :docs-paths ["docs"]
-   :formal-paths ["specs"]
    :test-paths ["test"]
-   :artifact-paths {:root ".bridge/artifacts"
-                    :phases ".bridge/artifacts/phases"
-                    :evidence ".bridge/artifacts/evidence"
-                    :evaluations ".bridge/artifacts/evaluations"
-                    :prompts ".bridge/artifacts/prompts"
+   :artifact-paths {:root ".bridge/ephemeral"
+                    :phases ".bridge/ephemeral/phases"
+                    :evidence ".bridge/ephemeral/evidence"
+                    :evaluations ".bridge/ephemeral/evaluations"
+                    :prompts ".bridge/ephemeral/prompts"
                     :policy ".bridge/verification-policy.yaml"}
    :verification-policy-path ".bridge/verification-policy.yaml"
    :canonical-commands [{:id "unit"
@@ -142,15 +174,12 @@
    :subsystems [{:name "core"
                  :code-globs ["src/**/*"]
                  :docs-globs ["docs/**/*"]
-                 :formal-globs ["specs/**/*"]
                  :test-globs ["test/**/*"]
                  :expected-artifacts ["change-intent-card" "verification-brief" "completeness-ledger"]
                  :expected-evidence ["unit"]
                  :system-category "api"
                  :risk-class "medium"}]
-   :phases [{:id :analyze :action "analyze-change" :output-path ".bridge/artifacts/phases/analyze.yaml"}
-            {:id :brief :action "generate-brief" :output-path ".bridge/artifacts/phases/brief.yaml"}
-            {:id :plan :action "plan-seed" :output-path ".bridge/artifacts/phases/plan.yaml"}]
+   :phases []
    :file-glob-rules [{:glob "src/**/*"
                       :subsystem "core"
                       :mechanism-family "implementation-change"
@@ -166,17 +195,28 @@
             :required-evidence {:unit-tests "required"
                                 :property-tests "optional"
                                 :runtime-assertions "optional"
-                                :docs-or-nl-spec "recommended"
-                                :formal-spec "optional"
-                                :differential-tests "optional"
-                                :trace-validation "optional"
-                                :benchmarks "optional"
-                                :confirmation-evidence "optional"}
+                                :docs-or-nl-spec "recommended"}
             :evidence-roles {:regression ["unit"]}
             :omission-rules {:allowed? true
                              :requires-record? true
                              :required-fields ["rationale" "owner"]}
             :notes ["Default bootstrap policy. Customize scope and evidence levels for this project."]}]})
+
+(defn init-profile-data [project-name root-path]
+  (merge (schema/stub-profile)
+         {:kind "project-profile"
+          :project-name project-name
+          :root-path root-path
+          :code-paths ["src"]
+          :docs-paths ["docs"]
+          :test-paths ["test"]
+          :artifact-paths {:root ".bridge/ephemeral"
+                           :phases ".bridge/ephemeral/phases"
+                           :evidence ".bridge/ephemeral/evidence"
+                           :evaluations ".bridge/ephemeral/evaluations"}
+          :canonical-commands []
+          :subsystems []
+          :phases []}))
 
 (defn append-gitignore-entry! [path entry]
   (let [existing (if (bio/exists? path) (bio/read-text path) "")
@@ -188,48 +228,36 @@
                                 "\n"))))
   path)
 
+(defn command-init-profile [opts]
+  (let [path (require-option opts :path)
+        project-name (or (:project-name opts) "example-project")
+        root-path (or (:root-path opts) ".")
+        data (init-profile-data project-name root-path)]
+    (bio/write-data path data)
+    {:written path}))
+
 (defn command-init [opts]
   (let [root (or (:root opts) ".")
         project-name (.getName (io/file (bio/absolute-path root)))
         profile-path (str (io/file root ".bridge/profile.edn"))
         policy-path (str (io/file root ".bridge/verification-policy.yaml"))]
     (doseq [dir [".bridge"
-                 ".bridge/artifacts"
-                 ".bridge/artifacts/phases"
-                 ".bridge/artifacts/evidence"
-                 ".bridge/artifacts/evaluations"
-                 ".bridge/artifacts/prompts"]]
+                 ".bridge/ephemeral"
+                 ".bridge/ephemeral/phases"
+                 ".bridge/ephemeral/evidence"
+                 ".bridge/ephemeral/evaluations"
+                 ".bridge/ephemeral/prompts"]]
       (.mkdirs (io/file root dir)))
     (when (bio/exists? profile-path)
       (throw (ex-info "Bridge profile already exists" {:path profile-path})))
     (when (bio/exists? policy-path)
       (throw (ex-info "Bridge verification policy already exists" {:path policy-path})))
-    (bio/write-data profile-path (default-profile project-name))
+    (command-init-profile {:path profile-path :project-name project-name :root-path ".."})
     (bio/write-data policy-path (default-policy project-name))
-    (append-gitignore-entry! (str (io/file root ".gitignore")) "/.bridge/artifacts/")
+    (append-gitignore-entry! (str (io/file root ".gitignore")) "/.bridge/ephemeral/")
     {:created [".bridge/profile.edn" ".bridge/verification-policy.yaml"]
      :updated [".gitignore"]
      :next-command "bb bridge next"}))
-
-(defn command-init-profile [opts]
-  (let [path (require-option opts :path)
-        data (merge (schema/stub-profile)
-                    {:kind "project-profile"
-                     :project-name "example-project"
-                     :root-path "."
-                     :code-paths ["src"]
-                     :docs-paths ["docs"]
-                     :formal-paths ["specs"]
-                     :test-paths ["test"]
-                     :artifact-paths {:root "artifacts"
-                                      :phases "artifacts/phases"
-                                      :evidence "artifacts/evidence"
-                                      :evaluations "artifacts/evaluations"}
-                     :canonical-commands []
-                     :subsystems []
-                     :phases []})]
-    (bio/write-data path data)
-    {:written path}))
 
 (def hook-marker-start "# BEGIN Bridge pre-push hook")
 (def hook-marker-end "# END Bridge pre-push hook")
@@ -540,6 +568,8 @@
   (try
     (let [{:keys [command options]} (parsed-command args)]
       (case command
+        nil (println help-text)
+        "help" (println help-text)
         "check" (print-status-command! command options (:bridge-check (dispatch args)))
         "next" (print-next-command! options (:bridge-next (dispatch args)))
         "init" (print-init-command! (dispatch args))

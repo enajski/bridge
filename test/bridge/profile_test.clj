@@ -61,6 +61,24 @@
       (is (bio/absolute? (get-in loaded [:derived-artifacts 0 :inputs 0])))
       (is (bio/absolute? (get-in loaded [:derived-artifacts 0 :outputs 0]))))))
 
+(deftest loads-profile-without-formal-surface
+  (let [dir (temp-dir)
+        profile-path (str (io/file dir "profile.edn"))
+        _ (.mkdirs (io/file dir "src/foo"))
+        _ (.mkdirs (io/file dir "docs"))
+        _ (.mkdirs (io/file dir "test/foo"))
+        _ (spit (io/file dir "src/foo/core.clj") "(ns foo.core)")
+        data (-> (base-profile ".")
+                 (dissoc :formal-paths)
+                 (update :subsystems #(mapv (fn [subsystem]
+                                               (dissoc subsystem :formal-globs))
+                                             %)))]
+    (bio/write-data profile-path data)
+    (let [loaded (profile/load-profile profile-path)]
+      (is (= [] (:formal-paths loaded)))
+      (is (= ["core"] (mapv :name (profile/match-subsystems loaded ["src/foo/core.clj"]))))
+      (is (= :code (profile/change-surface-kind loaded "src/foo/core.clj"))))))
+
 (deftest normalizes-nested-profile-and-sibling-root
   (let [workspace (temp-dir)
         repo-dir (io/file workspace "target-repo")

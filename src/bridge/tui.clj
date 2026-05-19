@@ -59,7 +59,7 @@
                                  (when (seq stale-because)
                                    (str " because of " (str/join ", " stale-because)))))
                           (:stale-artifacts status)))
-      (section-lines "Existing Subject Problems"
+      (section-lines "Existing Workflow Problems"
                      (map (fn [{:keys [subject workflow-state open-obligation-count failed-obligation-count]}]
                             (str "  [!] " subject
                                  " state=" workflow-state
@@ -74,7 +74,7 @@
                                  (when finished-at (str " at " finished-at))))
                           (:completed-evidence status)))
       (when (= "clear" (:status status))
-        ["No pending obligations, stale artifacts, or regressed subjects were found." ""])
+        ["No pending obligations, stale artifacts, or regressions in tracked subsystems/artifact subjects were found." ""])
       ["q quits. This Phase 1 view is read-only."]))))
 
 (defn render-status! [status]

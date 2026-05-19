@@ -10,7 +10,19 @@
 
 (deftest cli-dispatches-help-and-template-list
   (is (string? (:help (cli/dispatch []))))
+  (is (str/includes? (:help (cli/dispatch [])) "Stable commands:"))
+  (is (str/includes? (:help (cli/dispatch [])) "Experimental commands:"))
+  (is (str/includes? (:help (cli/dispatch [])) "Create .bridge/profile.edn"))
+  (is (str/includes? (:help (cli/dispatch [])) "Show the next verification work"))
   (is (seq (:templates (cli/dispatch ["list-templates"])))))
+
+(deftest cli-main-prints-help-as-text
+  (let [help-output (with-out-str (cli/-main "help"))
+        default-output (with-out-str (cli/-main))]
+    (is (str/includes? help-output "Stable commands:"))
+    (is (str/includes? help-output "Experimental commands:"))
+    (is (not (str/includes? help-output "{:help")))
+    (is (= help-output default-output))))
 
 (deftest cli-happy-path-init-stub-validate
   (let [dir (temp-dir)
@@ -19,6 +31,16 @@
     (is (= profile-path (:written (cli/dispatch ["init-profile" "--path" profile-path]))))
     (is (= artifact-path (:written (cli/dispatch ["stub-artifact" "--kind" "verification-brief" "--out" artifact-path]))))
     (is (true? (get-in (cli/dispatch ["validate-artifact" artifact-path]) [:validation :valid?])))))
+
+(deftest cli-init-profile-uses-ephemeral-bootstrap-layout
+  (let [dir (temp-dir)
+        profile-path (str (io/file dir "profile.edn"))]
+    (is (= profile-path (:written (cli/dispatch ["init-profile" "--path" profile-path]))))
+    (let [profile-data (bio/read-data profile-path)]
+      (is (= ".bridge/ephemeral" (get-in profile-data [:artifact-paths :root])))
+      (is (= ".bridge/ephemeral/phases" (get-in profile-data [:artifact-paths :phases])))
+      (is (= ".bridge/ephemeral/evidence" (get-in profile-data [:artifact-paths :evidence])))
+      (is (= ".bridge/ephemeral/evaluations" (get-in profile-data [:artifact-paths :evaluations]))))))
 
 (deftest cli-init-bootstraps-project-and-installs-hook
   (let [dir (temp-dir)
@@ -31,7 +53,12 @@
            (:created (cli/dispatch ["init" "--root" (str dir)]))))
     (is (bio/exists? profile-path))
     (is (bio/exists? policy-path))
-    (is (str/includes? (bio/read-text gitignore-path) "/.bridge/artifacts/"))
+    (let [profile-data (bio/read-data profile-path)
+          policy-data (bio/read-data policy-path)]
+      (is (not (contains? profile-data :formal-paths)))
+      (is (not (contains? (first (:subsystems profile-data)) :formal-globs)))
+      (is (not (contains? (get-in policy-data [:rules 0 :required-evidence]) :formal-spec))))
+    (is (str/includes? (bio/read-text gitignore-path) "/.bridge/ephemeral/"))
     (is (true? (get-in (cli/dispatch ["validate-artifact" policy-path]) [:validation :valid?])))
     (let [debug (cli/dispatch ["debug-profile" "--profile" profile-path])]
       (is (= (bio/absolute-path dir)

@@ -71,3 +71,18 @@
     (is (= :forbidden (get-in view [:required-evidence :unit-tests])))
     (is (some #(= "Forbidden evidence present: unit-tests" %)
               (policy/missing-obligations view #{:unit-tests} #{})))))
+
+(deftest sparse-policy-evidence-defaults-to-optional
+  (let [policy {:artifact "verification-policy"
+                :policy-id "sparse"
+                :rules [{:scope {:subsystems ["runtime"]}
+                         :required-evidence {:unit-tests "required"}}]}
+        view (policy/derive-policy policy {:subsystems ["runtime"]
+                                           :change-categories ["code-only"]
+                                           :system-categories ["async-runtime"]
+                                           :risk-class "medium"
+                                           :concern-classes []})]
+    (is (= "required" (get-in view [:required-evidence :unit-tests])))
+    (is (= "optional" (get-in view [:required-evidence :formal-spec])))
+    (is (= ["Missing required evidence: unit-tests"]
+           (policy/missing-obligations view #{:code} #{})))))

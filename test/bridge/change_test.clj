@@ -112,7 +112,7 @@
         _ (.mkdirs (io/file dir ".bridge"))
         _ (spit (io/file dir "src/planner/core.clj") "(ns planner.core)")
         _ (spit (io/file dir ".bridge/profile.edn") "{}")
-        _ (spit (io/file dir ".gitignore") "/.bridge/artifacts/")
+        _ (spit (io/file dir ".gitignore") "/.bridge/ephemeral/")
         profile (profile/load-profile (write-profile! dir))
         policy (policy/load-policy (write-policy! dir))
         card (change/initial-change-intent profile policy ["src/planner/core.clj"

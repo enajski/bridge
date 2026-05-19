@@ -225,7 +225,8 @@
                                                             :risk-classes {:type :vector :items {:type :enum :enum :risk-classes}}
                                                             :concern-classes {:type :vector :items {:type :enum :enum :concern-classes}}}}
                                          :required-evidence {:type :map
-                                                             :required {:unit-tests {:type :enum :enum :requirement-levels}
+                                                             :required {}
+                                                             :optional {:unit-tests {:type :enum :enum :requirement-levels}
                                                                         :property-tests {:type :enum :enum :requirement-levels}
                                                                         :runtime-assertions {:type :enum :enum :requirement-levels}
                                                                         :docs-or-nl-spec {:type :enum :enum :requirement-levels}
@@ -233,8 +234,7 @@
                                                                         :differential-tests {:type :enum :enum :requirement-levels}
                                                                         :trace-validation {:type :enum :enum :requirement-levels}
                                                                         :benchmarks {:type :enum :enum :requirement-levels}
-                                                                        :confirmation-evidence {:type :enum :enum :requirement-levels}}
-                                                             :optional {}}}
+                                                                        :confirmation-evidence {:type :enum :enum :requirement-levels}}}}
                               :optional {:evidence-roles {:type :map
                                                           :required {}
                                                           :optional {:conformance {:type :vector :items {:type :enum :enum :evidence-kinds}}
@@ -614,7 +614,6 @@
              :root-path {:type :string}
              :code-paths {:type :vector :items {:type :string}}
              :docs-paths {:type :vector :items {:type :string}}
-             :formal-paths {:type :vector :items {:type :string}}
              :test-paths {:type :vector :items {:type :string}}
              :artifact-paths {:type :map
                               :required {:root {:type :string}
@@ -658,10 +657,10 @@
                                   :required {:name {:type :string}
                                              :code-globs {:type :vector :items {:type :string}}
                                              :docs-globs {:type :vector :items {:type :string}}
-                                             :formal-globs {:type :vector :items {:type :string}}
                                              :test-globs {:type :vector :items {:type :string}}
                                              :expected-artifacts {:type :vector :items {:type :string}}}
                                   :optional {:system-category {:type :enum :enum :system-categories}
+                                             :formal-globs {:type :vector :items {:type :string}}
                                              :expected-evidence {:type :vector :items {:type :string}}
                                              :risk-class {:type :enum :enum :risk-classes}
                                              :owners {:type :vector :items {:type :string}}
@@ -681,6 +680,7 @@
                                          :notes {:type :vector :items {:type :string}}}}}}
   :optional {:glossary {:type :map-of :keys {:type :identifier} :values {:type :string}}
              :verification-policy-path {:type :string}
+             :formal-paths {:type :vector :items {:type :string}}
              :file-glob-rules {:type :vector
                                :items {:type :map
                                        :required {:glob {:type :string}

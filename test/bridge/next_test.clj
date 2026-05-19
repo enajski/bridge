@@ -59,7 +59,8 @@
         status (next/build-status loaded {:changed-files []})]
     (is (= "clear" (:status status)))
     (is (= 0 (next/exit-code status)))
-    (is (re-find #"All Clear" (next/render-plain status)))))
+    (is (re-find #"All Clear" (next/render-plain status)))
+    (is (re-find #"tracked subsystems/artifact subjects" (next/render-plain status)))))
 
 (deftest status-model-includes-existing-regressions
   (let [dir (temp-dir)

@@ -8,11 +8,11 @@ Bridge is not theorem prover, model checker, benchmark suite, or LLM provider wr
 - natural-language specs and contracts
 - tests
 - runtime assertions and observables
-- formal models
 - evidence records
 - AI-agent prompts and phase handoff artifacts
+- optional formal models
 
-Bridge is change-centered. Teams can start from code diff, spec diff, test diff, or mixed change. Formal artifacts are first-class, but not assumed as entry point.
+Bridge is change-centered. Teams can start from code diff, spec diff, test diff, or mixed change. The stable workflow is profile + policy + `bb bridge next` + evidence receipts. Formal verification, evaluation adapters, and generated formal linkage are experimental opt-in extensions.
 
 ## What problem Bridge solves
 
@@ -28,8 +28,24 @@ Bridge adds:
 - observable contracts for traces/runtime instrumentation
 - prompt templates rendered with exact repo paths and commands
 - evidence command registry and run receipts
-- phase-aware workflow with durable handoff outputs
-- feasibility-study and evaluation support
+- phase-aware workflow with explicit durable and ephemeral handoff outputs
+- experimental feasibility-study, evaluation, and formal-linkage support
+
+## Feature maturity
+
+Stable:
+
+- project profiles and verification policies
+- `bb bridge check` and `bb bridge next`
+- change analysis from profile globs
+- evidence command listing, dry runs, execution receipts, and status
+
+Experimental:
+
+- formal-linkage cards and formal-module mapping
+- proof/model-check/formal-spec evidence workflows
+- SysMoBench adapter and evaluation profiles
+- generated prompt/phase helpers, feasibility reports, and completeness ledgers
 
 ## Artifact types
 
@@ -55,7 +71,7 @@ Core artifacts:
 - `verification-changelog`
 - `feasibility-study`
 
-See `docs/artifacts.md` and `docs/artifact-matrix.md`.
+See `docs/internal/artifacts.md` for the storage split and artifact reference.
 
 ## Repo layout
 
@@ -91,6 +107,19 @@ bb test
 
 ## CLI commands
 
+Stable workflow:
+
+```bash
+bb bridge init
+bb bridge debug-profile --profile .bridge/profile.edn
+bb bridge analyze-change --profile .bridge/profile.edn --changed-file src/example.clj
+bb bridge next --profile .bridge/profile.edn
+bb bridge list-evidence --profile .bridge/profile.edn
+bb bridge run-evidence --profile .bridge/profile.edn --id unit --dry-run
+```
+
+Experimental workflow examples:
+
 ```bash
 bb bridge init-profile --path examples/demo/profile.edn
 bb bridge list-templates
@@ -123,7 +152,7 @@ bb bridge feasibility-report --artifact examples/sysmobench/feasibility-study.ya
 Profiles are machine-readable repo maps. They declare:
 
 - root path
-- code/docs/formal/test paths
+- code/docs/test paths, with optional formal paths
 - artifact output paths
 - canonical evidence commands
 - subsystem globs
@@ -187,7 +216,7 @@ summary -> identify subsystem -> query specific fields -> read full artifact onl
 ```
 
 
-`verification-brief` is first durable handoff artifact after analysis. It records:
+`verification-brief` is the first durable handoff artifact after analysis. It records:
 
 - system/workflow category
 - mechanism families
@@ -207,6 +236,11 @@ summary -> identify subsystem -> query specific fields -> read full artifact onl
 - semantics scope: base / trace / both
 
 This matters when trace/conformance semantics differ from hunt/base semantics.
+
+Bridge’s default split is:
+
+- ephemeral: `change-intent-card`, `change-impact-report`, `plan-seed`, rendered prompts, `evidence-run` receipts
+- durable: `verification-brief`, `observable-contract`, `verification-policy`, `completeness-ledger`, `verification-scope-ledger`, `omission-decision-record`, `verification-changelog`, `assumption-ledger`
 
 ## Status labels
 
@@ -381,7 +415,7 @@ Bridge supports both:
 - Bridge-native workflow metrics
 - external benchmark metrics
 
-SysMoBench is supported as first evaluation target for Bridge formal workflow slice. Bridge should not overfit to SysMoBench or TLA+ only.
+SysMoBench is supported as the first experimental evaluation target for Bridge formal workflow work. Bridge should not overfit to SysMoBench or TLA+ only.
 
 See `docs/evaluation.md`.
 

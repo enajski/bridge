@@ -242,7 +242,7 @@
                          (:stale-artifacts status))))
         "")
       (if (seq (:subject-problems status))
-        (str (line (colorize color? "31" "Existing Subject Problems:"))
+        (str (line (colorize color? "31" "Existing Workflow Problems:"))
              (apply str
                     (map (fn [{:keys [subject workflow-state open-obligation-count failed-obligation-count]}]
                            (str "  [!] " subject
@@ -267,4 +267,4 @@
                          (:completed-evidence status))))
         "")
       (when (= "clear" (:status status))
-        (line "No pending obligations, stale artifacts, or regressed subjects were found."))))))
+        (line "No pending obligations, stale artifacts, or regressions in tracked subsystems/artifact subjects were found."))))))
