@@ -137,9 +137,9 @@
 
 (defn build-status
   ([profile] (build-status profile {}))
-  ([profile {:keys [changed-files]}]
+  ([profile {:keys [changed-files policy]}]
    (let [changed-files* (resolve-changed-files profile changed-files)
-         policy (load-policy profile)
+         policy (or policy (load-policy profile))
          artifact-root (get-in profile [:artifact-paths :root])
          artifacts (if artifact-root (artifacts/find-artifacts artifact-root) [])
          intent (when (seq changed-files*)

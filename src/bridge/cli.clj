@@ -407,12 +407,14 @@
       {:plan-seed seed})))
 
 (defn command-check [opts]
-  (let [profile (:profile (load-profile+policy opts))]
-    {:bridge-check (next-guide/build-status profile {:changed-files (ensure-vector (:changed-file opts))})}))
+  (let [{:keys [profile policy]} (load-profile+policy opts)]
+    {:bridge-check (next-guide/build-status profile {:changed-files (ensure-vector (:changed-file opts))
+                                                     :policy policy})}))
 
 (defn command-next [opts]
-  (let [profile (:profile (load-profile+policy opts))]
-    {:bridge-next (next-guide/build-status profile {:changed-files (ensure-vector (:changed-file opts))})}))
+  (let [{:keys [profile policy]} (load-profile+policy opts)]
+    {:bridge-next (next-guide/build-status profile {:changed-files (ensure-vector (:changed-file opts))
+                                                     :policy policy})}))
 
 (defn command-convergence [opts]
   (let [profile (:profile (load-profile+policy opts))]

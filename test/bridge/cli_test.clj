@@ -221,6 +221,47 @@
       (is (= "attention-required" (get-in next [:bridge-next :status])))
       (is (seq (get-in check [:bridge-check :open-obligations]))))))
 
+(deftest cli-dispatches-check-with-policy-obligations
+  (let [dir (temp-dir)
+        _ (.mkdirs (io/file dir "src/bridge"))
+        _ (.mkdirs (io/file dir "artifacts"))
+        profile-path (str (io/file dir "profile.edn"))
+        policy-path (str (io/file dir "policy.yaml"))]
+    (spit (io/file dir "src/bridge/citation.clj") "(ns bridge.citation)")
+    (bio/write-data profile-path
+                    {:kind "project-profile"
+                     :project-name "demo"
+                     :root-path "."
+                     :code-paths ["src"] :docs-paths ["docs"] :formal-paths ["specs"] :test-paths ["test"]
+                     :artifact-paths {:root "artifacts" :phases "artifacts/phases" :evidence "artifacts/evidence" :evaluations "artifacts/evaluations"}
+                     :verification-policy-path "policy.yaml"
+                     :canonical-commands [{:id "unit" :kind "unit" :role "regression" :command "bb test"}]
+                     :subsystems [{:name "core"
+                                   :code-globs ["src/**/*"]
+                                   :docs-globs ["docs/**/*"]
+                                   :formal-globs []
+                                   :test-globs ["test/**/*"]
+                                   :expected-artifacts ["change-intent-card" "verification-brief" "completeness-ledger"]
+                                   :expected-evidence ["unit"]
+                                   :system-category "api"
+                                   :risk-class "medium"}]
+                     :phases []})
+    (bio/write-data policy-path
+                    {:artifact "verification-policy"
+                     :policy-id "demo"
+                     :rules [{:scope {:subsystems ["core"]
+                                      :change-categories ["code-only" "mixed"]
+                                      :risk-classes ["medium" "high"]}
+                              :required-evidence {:unit-tests "required"
+                                                  :property-tests "optional"
+                                                  :runtime-assertions "optional"
+                                                  :docs-or-nl-spec "recommended"}
+                              :evidence-roles {:regression ["unit"]}}]})
+    (let [check (cli/dispatch ["check" "--profile" profile-path "--changed-file" "src/bridge/citation.clj"])]
+      (is (= "attention-required" (get-in check [:bridge-check :status])))
+      (is (some #(str/includes? (:summary %) "unit-tests")
+                (get-in check [:bridge-check :open-obligations]))))))
+
 (deftest cli-check-discovers-default-profile
   (let [dir (temp-dir)
         _ (.mkdirs (io/file dir "src/runtime"))
