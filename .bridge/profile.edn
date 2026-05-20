@@ -1,7 +1,7 @@
 {:subsystems
  [{:name "core",
    :code-globs ["src/**/*"],
-   :docs-globs ["docs/**/*"],
+   :docs-globs ["docs/**/*" "features/**/*"],
    :test-globs ["test/**/*"],
    :expected-artifacts
    ["change-intent-card" "verification-brief" "completeness-ledger"],
@@ -16,6 +16,9 @@
   :evaluations ".bridge/ephemeral/evaluations"},
  :test-paths ["test"],
  :docs-paths ["docs"],
+ :requirement-sources [{:kind :acai-feature-yaml
+                        :globs ["features/**/*.feature.yaml"]
+                        :id-scheme :acid}],
  :phases [],
  :kind "project-profile",
  :code-paths ["src"],

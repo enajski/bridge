@@ -109,6 +109,7 @@
     "policy-evidence-forbidden" (str "Forbidden evidence present: " (first required-evidence))
     "policy-evidence-rerun" (str "Revalidate required evidence: " (first required-evidence))
     "policy-evidence-missing" (str "Missing required evidence: " (first required-evidence))
+    "policy-evidence-recommended" (str "Recommended evidence: " (first required-evidence))
     "missing-role-coverage" (str "Missing evidence role coverage: " role)
     "evidence-rerun" (str "Rerun evidence: " (first required-evidence))
     "artifact-refresh" (str "Refresh artifact: " artifact)
@@ -146,6 +147,18 @@
                      {:kind "policy-evidence-forbidden"
                       :required-evidence [(name k)]
                       :reason "Policy forbids this evidence class for the matched change context."}))))
+         vec)))
+
+(defn- policy-recommendations-structured [policy-view change-kinds existing-evidence]
+  (let [required-evidence (:required-evidence policy-view)]
+    (->> policy/evidence-keys
+         (keep (fn [k]
+                 (let [level (policy/normalize-policy-value (get required-evidence k))]
+                   (when (and (= "recommended" level)
+                              (not (contains? existing-evidence k)))
+                     {:kind "policy-evidence-recommended"
+                      :required-evidence [(name k)]
+                      :reason "Policy recommends evidence coverage for this change class."}))))
          vec)))
 
 (defn- role-obligations-structured [profile policy-view]
@@ -386,6 +399,13 @@
                                  (map obligation-string)
                                  distinct
                                  vec)
+        structured-recommendations (if policy-view
+                                     (policy-recommendations-structured policy-view change-kinds existing-evidence)
+                                     [])
+        recommended-obligations (->> structured-recommendations
+                                     (map obligation-string)
+                                     distinct
+                                     vec)
         stale-details (stale-artifacts-detailed profile changed-files subsystem-names)
         requirement-sources (requirements/matched-source-summaries profile changed-files)]
     (cond-> {:artifact "change-intent-card"
@@ -407,6 +427,8 @@
      :workflow-state "draft"
      :missing-obligations missing-obligations
      :missing-obligations-structured structured-obligations
+     :recommended-obligations recommended-obligations
+     :recommended-obligations-structured structured-recommendations
      :stale-artifacts (mapv :path stale-details)
      :stale-artifacts-detailed stale-details
      :open-questions (vec (concat

@@ -122,6 +122,15 @@
           (range)
           structured)))
 
+(defn- transient-recommendations [profile artifacts intent]
+  (let [statuses-by-kind (evidence-statuses-by-kind profile artifacts)
+        structured (:recommended-obligations-structured intent)
+        plain (:recommended-obligations intent)]
+    (mapv (fn [idx obligation]
+            (obligation-summary profile statuses-by-kind obligation (nth plain idx nil)))
+          (range)
+          structured)))
+
 (defn- completed-evidence [profile artifacts]
   (->> (evidence-results profile artifacts)
        (keep (fn [result]
@@ -160,9 +169,11 @@
          intent (when (seq changed-files*)
                   (change/initial-change-intent profile policy changed-files* "working-tree"))
          obligations (if intent (transient-obligations profile artifacts intent) [])
+         recommendations (if intent (transient-recommendations profile artifacts intent) [])
          open-obligations (filterv #(= "open" (:state %)) obligations)
          failed-obligations (filterv #(= "failed" (:state %)) obligations)
          completed-obligations (filterv #(= "completed" (:state %)) obligations)
+         open-recommendations (filterv #(= "open" (:state %)) recommendations)
          convergence (status/convergence-report profile artifact-root)
          subject-problems* (subject-problems convergence)
          stale-artifacts (vec (:stale-artifacts-detailed intent))
@@ -183,6 +194,7 @@
       :open-obligations open-obligations
       :failed-obligations failed-obligations
       :completed-obligations completed-obligations
+      :recommended-obligations open-recommendations
       :stale-artifacts stale-artifacts
       :completed-evidence (completed-evidence profile artifacts)
       :subject-problems subject-problems*
@@ -243,6 +255,10 @@
       (if (seq (:open-obligations status))
         (str (line (colorize color? "33" "Pending Obligations:"))
              (apply str (map #(render-obligation color? "[ ]" %) (:open-obligations status))))
+        "")
+      (if (seq (:recommended-obligations status))
+        (str (line (colorize color? "36" "Recommended Actions (Advisory):"))
+             (apply str (map #(render-obligation color? "[ ]" %) (:recommended-obligations status))))
         "")
       (if (seq (:stale-artifacts status))
         (str (line (colorize color? "33" "Stale Artifacts:"))

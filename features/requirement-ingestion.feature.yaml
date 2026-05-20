@@ -1,0 +1,39 @@
+feature:
+  name: requirement-ingestion
+  product: bridge
+  description: Local ingestion and parsing of structured natural-language feature requirements
+
+components:
+  DISCOVER:
+    name: Feature Discovery
+    description: Scan the workspace for feature specifications matching the profile configuration
+    requirements:
+      1: Discover feature files dynamically using the glob patterns configured in the profile
+      2: Gracefully ignore files that do not match the expected naming convention
+  
+  PARSE:
+    name: Feature Parser
+    description: Extract requirements and metadata from feature specification files
+    requirements:
+      1: Parse standard YAML formatting into structured Clojure maps
+      2: Support plain string values for simple requirement entries
+      3: Support nested map values for requirements requiring deprecation or replacement metadata
+      3-note: Map keys must support both replaced_by and replaced-by
+      4: Support inline notes using the -note suffix on requirement keys
+      4-note: The parser should automatically associate the note with the corresponding requirement key
+  
+  IDENTIFY:
+    name: ACID Generator
+    description: Generate stable, unique, and human-readable Acid identifiers
+    requirements:
+      1: Generate identifiers using the scheme [feature-name].[group-key].[requirement-key]
+      1-1: Support hierarchical sub-keys like 1-1, 1-2, etc.
+      2: Preserve ACID identities across changes to ensure stable reference points in code and tests
+
+constraints:
+  OFFLINE:
+    name: Local First Execution
+    description: Operations must not rely on external networks or services
+    requirements:
+      1: Load and parse feature files entirely from the local filesystem
+      2: Run verification and check commands with zero external API calls or server dependencies
