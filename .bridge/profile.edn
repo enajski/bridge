@@ -28,4 +28,10 @@
    :kind "unit",
    :role "regression",
    :command "bb test",
-   :description "Run unit tests"}]}
+   :description "Run unit tests"}
+  {:id "nl-spec-trace",
+   :kind "docs-or-nl-spec",
+   :role "spec-traceability",
+   :command "bb bridge coverage-as-evidence",
+   :result-parser {:type "bridge-result"},
+   :description "Validate requirement traceability coverage"}]}

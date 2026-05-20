@@ -78,10 +78,10 @@
                                 "--profile" profile-path
                                 "--changed-file" ".bridge/profile.edn"
                                 "--changed-file" ".gitignore"])]
-      (is (= []
+      (is (= ["core"]
              (get-in intent [:change-intent :semantic-scope :subsystems])))
-      (is (not-any? #(str/includes? % "unit-tests")
-                    (get-in intent [:change-intent :missing-obligations]))))
+      (is (some #(str/includes? % "unit-tests")
+                (get-in intent [:change-intent :missing-obligations]))))
     (is (= hook-path (:installed (cli/dispatch ["install-hooks" "--root" (str dir)]))))
     (is (str/includes? (bio/read-text hook-path) "bb bridge check --profile .bridge/profile.edn"))
     (is (.canExecute (io/file hook-path)))))
@@ -262,6 +262,60 @@
       (is (some #(str/includes? (:summary %) "unit-tests")
                 (get-in check [:bridge-check :open-obligations]))))))
 
+(deftest cli-check-treats-policy-change-as-staling-existing-evidence
+  (let [dir (temp-dir)
+        _ (.mkdirs (io/file dir "src/bridge"))
+        _ (.mkdirs (io/file dir "test/bridge"))
+        _ (.mkdirs (io/file dir "artifacts"))
+        profile-path (str (io/file dir "profile.edn"))
+        policy-path (str (io/file dir "policy.yaml"))]
+    (spit (io/file dir "src/bridge/core.clj") "(ns bridge.core)")
+    (spit (io/file dir "test/bridge/core_test.clj") "(ns bridge.core-test)")
+    (bio/write-data profile-path
+                    {:kind "project-profile"
+                     :project-name "demo"
+                     :root-path "."
+                     :code-paths ["src"] :docs-paths ["docs"] :formal-paths ["specs"] :test-paths ["test"]
+                     :artifact-paths {:root "artifacts" :phases "artifacts/phases" :evidence "artifacts/evidence" :evaluations "artifacts/evaluations"}
+                     :verification-policy-path "policy.yaml"
+                     :canonical-commands [{:id "unit" :kind "unit" :role "regression" :command "true"}]
+                     :subsystems [{:name "core"
+                                   :code-globs ["src/**/*"]
+                                   :docs-globs []
+                                   :formal-globs []
+                                   :test-globs ["test/**/*"]
+                                   :expected-artifacts ["change-intent-card"]
+                                   :expected-evidence ["unit"]
+                                   :system-category "api"
+                                   :risk-class "medium"}]
+                     :phases []})
+    (bio/write-data policy-path
+                    {:artifact "verification-policy"
+                     :policy-id "demo"
+                     :rules [{:scope {:subsystems ["core"]
+                                      :change-categories ["mixed"]
+                                      :risk-classes ["medium"]}
+                              :required-evidence {:unit-tests "required"}
+                              :evidence-roles {:regression ["unit"]}}]})
+    (is (= "evidence-run"
+           (get-in (cli/dispatch ["run-evidence" "--profile" profile-path "--id" "unit"])
+                   [:result :artifact])))
+    (Thread/sleep 10)
+    (bio/write-data policy-path
+                    {:artifact "verification-policy"
+                     :policy-id "demo"
+                     :rules [{:scope {:subsystems ["core"]
+                                      :change-categories ["mixed"]
+                                      :risk-classes ["medium"]}
+                              :required-evidence {:unit-tests "required"
+                                                  :docs-or-nl-spec "required"}
+                              :evidence-roles {:regression ["unit"]}}]})
+    (let [check (cli/dispatch ["check" "--profile" profile-path "--changed-file" "policy.yaml"])]
+      (is (= "attention-required" (get-in check [:bridge-check :status])))
+      (is (some #(str/includes? (:summary %) "unit-tests")
+                (get-in check [:bridge-check :open-obligations])))
+      (is (empty? (get-in check [:bridge-check :completed-evidence]))))))
+
 (deftest cli-check-discovers-default-profile
   (let [dir (temp-dir)
         _ (.mkdirs (io/file dir "src/runtime"))
@@ -292,6 +346,42 @@
       (is (= "attention-required"
              (get-in (cli/dispatch ["check" "--changed-file" "src/runtime/core.clj"])
                      [:bridge-check :status]))))))
+
+(deftest cli-coverage-as-evidence-reports-unlinked-requirements
+  (let [dir (temp-dir)
+        _ (.mkdirs (io/file dir "features"))
+        _ (.mkdirs (io/file dir "artifacts"))
+        profile-path (str (io/file dir "profile.edn"))]
+    (bio/write-data (str (io/file dir "features" "demo.feature.yaml"))
+                    {:feature {:name "demo" :product "demo"}
+                     :components {:CORE {:requirements {1 "Maps requirement to implementation"}}}})
+    (bio/write-data profile-path
+                    {:kind "project-profile"
+                     :project-name "demo"
+                     :root-path "."
+                     :code-paths ["src"] :docs-paths ["docs"] :formal-paths ["specs"] :test-paths ["test"]
+                     :artifact-paths {:root "artifacts" :phases "artifacts/phases" :evidence "artifacts/evidence" :evaluations "artifacts/evaluations"}
+                     :canonical-commands [{:id "nl-spec-trace"
+                                           :kind "docs-or-nl-spec"
+                                           :role "spec-traceability"
+                                           :command (str "cd " (bio/absolute-path ".")
+                                                         " && bb bridge coverage-as-evidence --profile " profile-path)
+                                           :result-parser {:type "bridge-result"}}]
+                     :subsystems []
+                     :phases []
+                     :requirement-sources [{:kind :acai-feature-yaml
+                                            :globs ["features/**/*.feature.yaml"]
+                                            :id-scheme :acid}]})
+    (let [direct (cli/dispatch ["coverage-as-evidence" "--profile" profile-path])
+          evidence (cli/dispatch ["run-evidence" "--profile" profile-path "--id" "nl-spec-trace"])]
+      (is (= "docs-or-nl-spec" (get-in direct [:result :kind])))
+      (is (= "failed" (get-in direct [:result :evidence-status])))
+      (is (= 1 (get-in direct [:result :parsed-metrics :requirements-unlinked])))
+      (is (= ["demo.CORE.1"] (get-in direct [:result :related-paths :unlinked-ids])))
+      (is (= "docs-or-nl-spec" (get-in evidence [:result :kind])))
+      (is (= "spec-traceability" (get-in evidence [:result :role])))
+      (is (= "failed" (get-in evidence [:result :evidence-status])))
+      (is (= 1 (get-in evidence [:result :parsed-metrics :requirements-unlinked]))))))
 
 (deftest cli-init-profile-infers-commands
   (let [dir (temp-dir)

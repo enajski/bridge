@@ -143,4 +143,38 @@
     (is (= "converged" (get-in (status/convergence-report passing-dir)
                                [:subjects "planner-runtime" :workflow-state])))
     (is (= "regressed" (get-in (status/convergence-report failing-dir)
-                               [:subjects "planner-runtime" :workflow-state])))))
+                               [:subjects "planner-runtime" :workflow-state])))
+    (is (= 1 (get-in (status/convergence-report failing-dir)
+                     [:subjects "planner-runtime" :failed-obligation-count])))
+    (is (= 1 (get-in (status/convergence-report failing-dir)
+                     [:subjects "planner-runtime" :failed-evidence-count])))))
+
+(deftest direct-failed-evidence-regresses-subject-without-obligation
+  (let [dir (temp-dir)
+        artifact-dir (str (io/file dir "artifacts"))]
+    (.mkdirs (io/file artifact-dir))
+    (bio/write-data (str (io/file artifact-dir "nl-spec-trace.yaml"))
+                    {:artifact "evidence-run"
+                     :evidence-id "nl-spec-trace"
+                     :subject "bridge"
+                     :kind "docs-or-nl-spec"
+                     :role "spec-traceability"
+                     :execution-status "executed"
+                     :evidence-status "failed"
+                     :exit-code 0
+                     :stdout-path "nl-spec-trace.stdout.log"
+                     :stderr-path "nl-spec-trace.stderr.log"
+                     :started-at "2026-04-23T00:00:00Z"
+                     :finished-at "2026-04-23T00:00:01Z"
+                     :duration-ms 1
+                     :timeout-ms 300000
+                     :timed-out? false
+                     :command "bb bridge coverage-as-evidence"
+                     :cwd "."
+                     :failure-signals ["11 unlinked requirements"]
+                     :parsed-metrics {:requirements-unlinked 11}
+                     :subsystem-fingerprint "mockfp123"})
+    (let [report (status/convergence-report artifact-dir)]
+      (is (= "regressed" (get-in report [:subjects "bridge" :workflow-state])))
+      (is (= 0 (get-in report [:subjects "bridge" :failed-obligation-count])))
+      (is (= 1 (get-in report [:subjects "bridge" :failed-evidence-count]))))))

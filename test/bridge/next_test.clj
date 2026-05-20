@@ -87,3 +87,36 @@
     (let [status (next/build-status loaded {:changed-files []})]
       (is (= "attention-required" (:status status)))
       (is (= "runtime" (get-in status [:subject-problems 0 :subject]))))))
+
+(deftest status-model-renders-direct-failed-evidence-count
+  (let [dir (temp-dir)
+        artifact-dir (io/file dir "artifacts")
+        _ (.mkdirs artifact-dir)
+        loaded (profile/normalize-profile (profile dir) (str (io/file dir "profile.edn")))]
+    (bio/write-data (str (io/file artifact-dir "trace.yaml"))
+                    {:artifact "evidence-run"
+                     :evidence-id "trace"
+                     :subject "runtime"
+                     :kind "trace-validation"
+                     :role "conformance"
+                     :execution-status "executed"
+                     :evidence-status "failed"
+                     :exit-code 0
+                     :stdout-path "trace.stdout.log"
+                     :stderr-path "trace.stderr.log"
+                     :started-at "2026-04-23T00:00:00Z"
+                     :finished-at "2026-04-23T00:00:01Z"
+                     :duration-ms 1
+                     :timeout-ms 300000
+                     :timed-out? false
+                     :command "echo FAIL"
+                     :cwd "."
+                     :failure-signals ["TraceAccepted false"]
+                     :parsed-metrics {}
+                     :subsystem-fingerprint (profile/subsystem-fingerprint loaded
+                                                                             (profile/subsystem-by-name loaded "runtime"))})
+    (let [status (next/build-status loaded {:changed-files []})
+          rendered (next/render-plain status)]
+      (is (= "attention-required" (:status status)))
+      (is (= 1 (get-in status [:subject-problems 0 :failed-evidence-count])))
+      (is (re-find #"evidence-failed=1" rendered)))))

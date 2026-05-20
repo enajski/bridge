@@ -25,6 +25,24 @@
        (map #(profile/change-surface-kind profile %))
        set))
 
+(defn- verification-config-paths [profile]
+  (let [root (:root-path profile)]
+    (->> [(:source-path profile)
+          (:verification-policy-path profile)
+          (bio/resolve-path root ".bridge/verification-policy.yaml")]
+         (filter some?)
+         (map #(bio/relativize-path root %))
+         set)))
+
+(defn- verification-config-change? [profile changed-files]
+  (let [root (:root-path profile)
+        config-paths (verification-config-paths profile)]
+    (boolean
+     (some (fn [path]
+             (contains? config-paths
+                        (bio/relativize-path root (bio/resolve-path root path))))
+           changed-files))))
+
 (defn matched-change-files [profile changed-files subsystems matched-rules]
   (let [root (:root-path profile)
         subsystem-globs (mapcat profile/subsystem-rel-globs subsystems)
@@ -369,7 +387,10 @@
        (mapv :path)))
 
 (defn initial-change-intent [profile policy changed-files change-id]
-  (let [subsystems (profile/match-subsystems profile changed-files)
+  (let [config-change? (verification-config-change? profile changed-files)
+        subsystems (if config-change?
+                     (vec (:subsystems profile))
+                     (profile/match-subsystems profile changed-files))
         matched-rules (profile/match-glob-rules profile changed-files)
         subsystem-names (mapv :name subsystems)
         matched-files (matched-change-files profile changed-files subsystems matched-rules)

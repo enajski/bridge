@@ -109,6 +109,10 @@
      "      Summarize configured subjects and artifacts."
      "  debug-profile --profile FILE [--changed-file PATH]..."
      "      Show normalized profile paths, globs, and matches."
+     "  coverage --profile FILE"
+     "      Summarize artifact coverage against profile expectations."
+     "  coverage-as-evidence --profile FILE"
+     "      Emit requirement traceability coverage as docs-or-nl-spec evidence."
      "  analyze-change --profile FILE --changed-file PATH [--changed-file PATH]... [--out FILE]"
      "      Build a change-intent card from changed files."
      "  check [--profile FILE] [--changed-file PATH]... [--format text|edn] [--no-color]"
@@ -127,8 +131,6 @@
      "      Render an agent prompt from a profile."
      "  query --profile FILE SUBJECT [FIELD]"
      "      Query existing artifacts by subject and field."
-     "  coverage --profile FILE"
-     "      Summarize artifact coverage against profile expectations."
      "  stub-artifact --kind KIND --out FILE"
      "      Write a schema-shaped artifact stub."
      "  missing-artifacts --profile FILE"
@@ -358,6 +360,27 @@
 (defn command-coverage [opts]
   {:coverage (artifacts/coverage (:profile (load-profile+policy opts)))})
 
+(defn command-coverage-as-evidence [opts]
+  (let [coverage (artifacts/coverage (:profile (load-profile+policy opts)))
+        requirements (:requirements coverage)
+        unlinked-ids (vec (:unlinked-ids requirements))
+        unlinked-count (long (or (:unlinked-count requirements) 0))
+        total-count (long (or (:total-count requirements) 0))
+        linked-count (long (or (:linked-count requirements) 0))
+        status (if (zero? unlinked-count) "passed" "failed")]
+    {:result
+     (cond-> {:kind "docs-or-nl-spec"
+              :role "spec-traceability"
+              :evidence-status status
+              :failure-signals (if (zero? unlinked-count)
+                                 []
+                                 [(str unlinked-count " unlinked requirement"
+                                       (when-not (= 1 unlinked-count) "s"))])
+              :parsed-metrics {:requirements-total total-count
+                               :requirements-linked linked-count
+                               :requirements-unlinked unlinked-count}}
+       (seq unlinked-ids) (assoc :related-paths {:unlinked-ids unlinked-ids}))}))
+
 (defn command-stub-artifact [opts]
   (let [kind (require-option opts :kind)
         out (require-option opts :out)
@@ -493,6 +516,7 @@
       "debug-profile" (command-debug-profile options)
       "query" (command-query options pos)
       "coverage" (command-coverage options)
+      "coverage-as-evidence" (command-coverage-as-evidence options)
       "stub-artifact" (command-stub-artifact options)
       "missing-artifacts" (command-missing-artifacts options)
       "analyze-change" (command-analyze-change options)

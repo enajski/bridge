@@ -5,7 +5,7 @@
   :verification-methods ["model-checkable" "test-verifiable" "code-review-only" "out-of-scope"]
   :workflow-states ["draft" "active" "converged" "regressed"]
   :completeness-statuses ["required" "present" "missing" "deferred" "waived"]
-  :evidence-roles ["conformance" "exploration" "confirmation" "regression"]
+  :evidence-roles ["conformance" "exploration" "confirmation" "regression" "spec-traceability"]
   :finding-statuses ["none" "suspected" "spurious" "spec-unfaithful" "retracted" "audited"
                      "reproduced" "confirmed" "clean-with-scope" "expected-window"
                      "known-deviation" "assumption-dependent-clean"]
@@ -17,7 +17,7 @@
   :environment-assumptions ["transport" "scheduler" "memory-model" "runtime-delivery"
                             "type-system" "other"]
   :evidence-kinds ["unit" "property" "runtime" "differential" "trace-validation" "benchmark"
-                   "proof" "model-check" "symbolic" "custom"]
+                   "proof" "model-check" "symbolic" "docs-or-nl-spec" "custom"]
   :requirement-levels ["required" "recommended" "optional" "forbidden"]
   :risk-classes ["low" "medium" "high"]
   :change-categories ["feature" "bugfix" "refactor" "spec-only" "code-only" "tests-only"

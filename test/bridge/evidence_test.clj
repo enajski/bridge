@@ -117,10 +117,13 @@
   (let [dir (temp-dir)
         sub-dir (io/file dir "src")
         _ (.mkdirs sub-dir)
-        f1 (io/file sub-dir "a.clj")]
+        f1 (io/file sub-dir "a.clj")
+        policy-file (io/file dir "policy.yaml")]
     (spit f1 "content-a")
+    (spit policy-file "policy-a")
     (let [profile {:root-path (.getAbsolutePath dir)
                    :source-path (str (io/file dir "profile.edn"))
+                   :verification-policy-path (str policy-file)
                    :code-paths ["src"]
                    :docs-paths []
                    :formal-paths []
@@ -138,6 +141,12 @@
                   :kind "unit-tests"
                   :subsystem-fingerprint fp}]
       (is (false? (evidence/stale-evidence-run? profile ev-run)))
+      (Thread/sleep 10)
+      (spit policy-file "policy-b")
+      (is (true? (evidence/stale-evidence-run? profile ev-run)))
+      (let [fp-after-policy-change (profile/subsystem-fingerprint profile subsystem)
+            ev-run-after-policy-change (assoc ev-run :subsystem-fingerprint fp-after-policy-change)]
+        (is (false? (evidence/stale-evidence-run? profile ev-run-after-policy-change))))
       (Thread/sleep 10)
       (spit f1 "content-a-edited")
       (is (true? (evidence/stale-evidence-run? profile ev-run)))

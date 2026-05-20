@@ -20,6 +20,7 @@
                      :formal-paths ["specs"]
                      :test-paths ["test"]
                      :artifact-paths {:root "artifacts" :phases "artifacts/phases" :evidence "artifacts/evidence" :evaluations "artifacts/evaluations"}
+                     :verification-policy-path "policy.yaml"
                      :canonical-commands [{:id "trace" :kind "trace-validation" :role "conformance" :command "echo trace"}
                                           {:id "mc" :kind "model-check" :role "exploration" :command "echo model-check"}]
                      :subsystems [{:name "planner"
@@ -105,6 +106,23 @@
              :requirement-count 2
              :requirement-ids ["planner.ORDER.1" "planner.ORDER.1-1"]}]
            (:requirement-sources (change/initial-change-intent profile policy ["features/planner.feature.yaml"] "chg-2"))))))
+
+(deftest policy-only-changes-revalidate-affected-subsystems
+  (let [dir (temp-dir)
+        _ (.mkdirs (io/file dir "src/planner"))
+        _ (.mkdirs (io/file dir "docs"))
+        _ (.mkdirs (io/file dir "test/planner"))
+        _ (.mkdirs (io/file dir "artifacts"))
+        _ (spit (io/file dir "src/planner/core.clj") "(ns planner.core)")
+        _ (spit (io/file dir "docs/spec.md") "spec")
+        _ (spit (io/file dir "test/planner/core_test.clj") "(ns planner.core-test)")
+        profile (profile/load-profile (write-profile! dir))
+        policy (policy/load-policy (write-policy! dir))
+        card (change/initial-change-intent profile policy ["policy.yaml"] "policy-change")]
+    (is (= ["planner"] (get-in card [:semantic-scope :subsystems])))
+    (is (= "high" (:risk-class card)))
+    (is (some #(= "Revalidate required evidence: unit-tests" %) (:missing-obligations card)))
+    (is (some #(= "Revalidate required evidence: docs-or-nl-spec" %) (:missing-obligations card)))))
 
 (deftest unmatched-files-do-not-contaminate-matched-change-classification
   (let [dir (temp-dir)

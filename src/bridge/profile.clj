@@ -258,7 +258,12 @@
 (defn- subsystem-fingerprint-uncached [profile subsystem]
   (let [root (:root-path profile)
         files (subsystem-files profile subsystem)
-        sorted-files (sort files)
+        config-files (->> [(:source-path profile)
+                           (or (:verification-policy-path profile)
+                               (bio/resolve-path root ".bridge/verification-policy.yaml"))]
+                          (filter bio/exists?)
+                          (map #(bio/relativize-path root %)))
+        sorted-files (sort (distinct (concat files config-files)))
         digest (java.security.MessageDigest/getInstance "SHA-256")]
     (doseq [f sorted-files]
       (let [fp (bio/resolve-path root f)

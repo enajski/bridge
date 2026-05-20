@@ -125,6 +125,11 @@
         "executed"
         "execution-failed"))))
 
+(defn- evidence-result-count [profile artifacts statuses]
+  (let [wanted (set statuses)]
+    (count (filter #(contains? wanted (schema/normalize-enum-value (:evidence-status %)))
+                   (evidence-results profile artifacts)))))
+
 (defn subject-summary [profile artifacts]
   (let [states (keep explicit-workflow-state artifacts)
         effects (mapcat changelog-effects artifacts)
@@ -132,6 +137,8 @@
         closures (obligation-closures profile artifacts)
         failed-obligation-count (count (filter #(= "executed-failed" (get-in % [:closure :state])) closures))
         open-obligation-count (count (filter #(= "open" (get-in % [:closure :state])) closures))
+        failed-evidence-count (evidence-result-count profile artifacts ["failed"])
+        open-evidence-count (evidence-result-count profile artifacts ["partial" "unknown"])
         verification-status* (verification-status profile artifacts)
         execution-status* (execution-status profile artifacts)
         evidence-present? (seq (evidence-results profile artifacts))
@@ -156,6 +163,8 @@
      :regressed-count (count (filter #(= "regressed" %) effects))
      :open-obligation-count open-obligation-count
      :failed-obligation-count failed-obligation-count
+     :open-evidence-count open-evidence-count
+     :failed-evidence-count failed-evidence-count
      :obligation-closures closures
      :subjects (->> artifacts (map artifacts/subject-of) (filter some?) distinct vec)}))
 

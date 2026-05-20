@@ -148,14 +148,20 @@
        (keep (fn [[subject summary]]
                (let [open (:open-obligation-count summary)
                      failed (:failed-obligation-count summary)
+                     open-evidence (:open-evidence-count summary)
+                     failed-evidence (:failed-evidence-count summary)
                      state (:workflow-state summary)]
                  (when (or (pos? open)
                            (pos? failed)
+                           (pos? open-evidence)
+                           (pos? failed-evidence)
                            (= "regressed" state))
                    {:subject subject
                     :workflow-state state
                     :open-obligation-count open
                     :failed-obligation-count failed
+                    :open-evidence-count open-evidence
+                    :failed-evidence-count failed-evidence
                     :verification-status (:verification-status summary)}))))
        vec))
 
@@ -274,11 +280,14 @@
       (if (seq (:subject-problems status))
         (str (line (colorize color? "31" "Existing Workflow Problems:"))
              (apply str
-                    (map (fn [{:keys [subject workflow-state open-obligation-count failed-obligation-count]}]
+                    (map (fn [{:keys [subject workflow-state open-obligation-count failed-obligation-count
+                                      open-evidence-count failed-evidence-count]}]
                            (str "  [!] " subject
                                 " state=" workflow-state
                                 " open=" open-obligation-count
                                 " failed=" failed-obligation-count
+                                " evidence-open=" (or open-evidence-count 0)
+                                " evidence-failed=" (or failed-evidence-count 0)
                                 "\n"))
                          (:subject-problems status))))
         "")
