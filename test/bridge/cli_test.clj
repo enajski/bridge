@@ -60,8 +60,11 @@
         gitignore-path (str (io/file dir ".gitignore"))
         hook-path (str (io/file dir ".git/hooks/pre-push"))]
     (.mkdirs (io/file dir ".git"))
-    (is (= [".bridge/profile.edn" ".bridge/verification-policy.yaml"]
-           (:created (cli/dispatch ["init" "--root" (str dir)]))))
+    (let [init-result (cli/dispatch ["init" "--root" (str dir)])]
+      (is (= [".bridge/profile.edn" ".bridge/verification-policy.yaml"]
+             (:created init-result)))
+      (is (= [{:op "bridge/next" :args {}}] (:next-actions init-result)))
+      (is (not (contains? init-result :next-command))))
     (is (bio/exists? profile-path))
     (is (bio/exists? policy-path))
     (let [profile-data (bio/read-data profile-path)
@@ -96,6 +99,22 @@
     (is (str/includes? init-output "Run `bb bridge next`"))
     (is (not (str/includes? init-output "{:created")))
     (is (str/includes? hook-output "✅ Installed `bb bridge check --profile .bridge/profile.edn`"))))
+
+(deftest cli-next-defaults-to-plain-text
+  (let [dir (temp-dir)
+        profile-path (str (io/file dir "profile.edn"))]
+    (bio/write-data profile-path
+                    {:kind "project-profile"
+                     :project-name "demo"
+                     :root-path "."
+                     :code-paths ["src"] :docs-paths ["docs"] :formal-paths ["specs"] :test-paths ["test"]
+                     :artifact-paths {:root "artifacts" :phases "artifacts/phases" :evidence "artifacts/evidence" :evaluations "artifacts/evaluations"}
+                     :canonical-commands []
+                     :subsystems []
+                     :phases []})
+    (let [output (with-out-str (cli/-main "next" "--profile" profile-path "--no-color"))]
+      (is (str/includes? output "Bridge Status: All Clear"))
+      (is (not (str/includes? output "{:bridge-next"))))))
 
 (deftest cli-generates-brief-observable-and-debug-profile
   (let [dir (temp-dir)
@@ -219,7 +238,55 @@
           next (cli/dispatch ["next" "--profile" profile-path "--changed-file" "src/runtime/core.clj"])]
       (is (= "attention-required" (get-in check [:bridge-check :status])))
       (is (= "attention-required" (get-in next [:bridge-next :status])))
-      (is (seq (get-in check [:bridge-check :open-obligations]))))))
+      (is (seq (get-in check [:bridge-check :open-obligations])))
+      (is (= {:op "bridge/run-evidence" :args {:id "trace"}}
+             (select-keys (get-in next [:bridge-next :open-obligations 0 :actions 0])
+                          [:op :args]))))))
+
+(deftest cli-auto-dry-run-plans-without-writing-and-auto-runs-evidence
+  (let [dir (temp-dir)
+        _ (.mkdirs (io/file dir "src/runtime"))
+        _ (.mkdirs (io/file dir "artifacts"))
+        _ (spit (io/file dir "src/runtime/core.clj") "(ns runtime.core)")
+        profile-path (str (io/file dir "profile.edn"))
+        evidence-path (str (io/file dir "artifacts" "evidence" "trace.yaml"))]
+    (bio/write-data profile-path
+                    {:kind "project-profile"
+                     :project-name "demo"
+                     :root-path "."
+                     :code-paths ["src"] :docs-paths ["docs"] :formal-paths ["specs"] :test-paths ["test"]
+                     :artifact-paths {:root "artifacts" :phases "artifacts/phases" :evidence "artifacts/evidence" :evaluations "artifacts/evaluations"}
+                     :canonical-commands [{:id "trace"
+                                           :kind "trace-validation"
+                                           :role "conformance"
+                                           :command "printf '{:result {:kind \"trace-validation\" :role \"conformance\" :evidence-status \"passed\"}}'"
+                                           :result-parser {:type "bridge-result"}}]
+                     :subsystems [{:name "runtime"
+                                   :code-globs ["src/runtime/**/*.clj"]
+                                   :docs-globs []
+                                   :formal-globs []
+                                   :test-globs []
+                                   :expected-artifacts ["verification-brief"]
+                                   :expected-evidence ["trace-validation"]
+                                   :system-category "async-runtime"}]
+                     :file-glob-rules [{:glob "src/runtime/**/*.clj"
+                                        :subsystem "runtime"
+                                        :mechanism-family "verification-harness"
+                                        :concern-class "liveness"}]
+                     :phases []})
+    (let [dry-run (cli/dispatch ["auto" "--profile" profile-path "--changed-file" "src/runtime/core.clj" "--dry-run"])]
+      (is (= true (get-in dry-run [:auto :dry-run?])))
+      (is (= "trace" (get-in dry-run [:auto :planned-actions 0 :evidence-id])))
+      (is (= {:op "bridge/run-evidence" :args {:id "trace"}}
+             (select-keys (get-in dry-run [:auto :planned-actions 0]) [:op :args])))
+      (is (not (contains? (get-in dry-run [:auto :planned-actions 0]) :command)))
+      (is (false? (bio/exists? evidence-path))))
+    (let [result (cli/dispatch ["auto" "--profile" profile-path "--changed-file" "src/runtime/core.clj"])]
+      (is (= false (get-in result [:auto :dry-run?])))
+      (is (= false (get-in result [:auto :stopped?])))
+      (is (= "trace" (get-in result [:auto :results 0 :result :evidence-id])))
+      (is (= "passed" (get-in result [:auto :results 0 :result :evidence-status])))
+      (is (true? (bio/exists? evidence-path))))))
 
 (deftest cli-dispatches-check-with-policy-obligations
   (let [dir (temp-dir)

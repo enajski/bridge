@@ -21,15 +21,17 @@
        (when-let [reason (:reason obligation)]
          (str " (" reason ")"))))
 
-(defn- command-lines [obligation]
-  (mapcat (fn [{:keys [id command]}]
-            [(str "      " id ": " command)])
-          (:commands obligation)))
+(defn- action-lines [obligation]
+  (mapcat (fn [{:keys [op evidence-id]}]
+            [(case op
+               "bridge/run-evidence" (str "      bb bridge run-evidence --id " evidence-id)
+               (str "      " op))])
+          (:actions obligation)))
 
 (defn- obligation-lines [marker obligations]
   (mapcat (fn [obligation]
             (cons (obligation-line marker obligation)
-                  (command-lines obligation)))
+                  (action-lines obligation)))
           obligations))
 
 (defn- view-lines [status]

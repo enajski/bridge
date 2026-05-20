@@ -117,8 +117,10 @@
      "      Build a change-intent card from changed files."
      "  check [--profile FILE] [--changed-file PATH]... [--format text|edn] [--no-color]"
      "      Print status for automation and exit nonzero on issues."
-     "  next [--profile FILE] [--changed-file PATH]... [--tui auto|always|never] [--no-color]"
-     "      Show the next verification work for a repo."
+     "  next [--profile FILE] [--changed-file PATH]... [--tui never|always|auto] [--no-color]"
+     "      Show the next verification work for a repo. Plain text is the default."
+     "  auto [--profile FILE] [--changed-file PATH]... [--dry-run] [--continue-on-failure] [--id ID]"
+     "      Explicitly run planned evidence commands and record receipts."
      "  list-evidence --profile FILE"
      "      List runnable evidence commands from the profile."
      "  run-evidence --profile FILE --id ID [--subject SUBJECT] [--out FILE] [--out-dir DIR] [--timeout-seconds N] [--dry-run]"
@@ -266,7 +268,7 @@
     (append-gitignore-entry! (str (io/file root ".gitignore")) "/.bridge/ephemeral/")
     {:created [".bridge/profile.edn" ".bridge/verification-policy.yaml"]
      :updated [".gitignore"]
-     :next-command "bb bridge next"}))
+     :next-actions [{:op "bridge/next" :args {}}]}))
 
 (def hook-marker-start "# BEGIN Bridge pre-push hook")
 (def hook-marker-end "# END Bridge pre-push hook")
@@ -491,6 +493,43 @@
                                     :timeout-seconds (:timeout-seconds opts)
                                     :dry-run? (boolean (:dry-run opts))})}))
 
+(defn- select-auto-actions [actions opts]
+  (let [ids (set (ensure-vector (:id opts)))]
+    (cond->> actions
+      (seq ids) (filter #(contains? ids (:evidence-id %)))
+      (not (:all opts)) (take 1)
+      true vec)))
+
+(defn command-auto [opts]
+  (let [{:keys [profile policy]} (load-profile+policy opts)
+        status (next-guide/build-status profile {:changed-files (ensure-vector (:changed-file opts))
+                                                 :policy policy})
+        planned (select-auto-actions (next-guide/planned-actions status) opts)]
+    (if (:dry-run opts)
+      {:auto {:dry-run? true
+              :planned-actions planned
+              :status (:status status)}}
+      (loop [actions planned
+             results []]
+        (if-let [action (first actions)]
+          (let [result (evidence/run-command profile
+                                             (:evidence-id action)
+                                             {:subject (:subject opts)
+                                              :timeout-seconds (:timeout-seconds opts)})
+                result-status (schema/normalize-enum-value (:evidence-status result))
+                results* (conj results {:action action
+                                        :result result})]
+            (if (and (= "failed" result-status)
+                     (not (:continue-on-failure opts)))
+              {:auto {:dry-run? false
+                      :stopped? true
+                      :stop-reason "evidence-failed"
+                      :results results*}}
+              (recur (rest actions) results*)))
+          {:auto {:dry-run? false
+                  :stopped? false
+                  :results results}})))))
+
 (defn command-eval [opts]
   (beval/run-evaluation (beval/load-evaluation-profile (require-option opts :profile)) {:out-path (:out opts)}))
 
@@ -525,6 +564,7 @@
       "plan-seed" (command-plan-seed options)
       "check" (command-check options)
       "next" (command-next options)
+      "auto" (command-auto options)
       "convergence" (command-convergence options)
       "completeness" (command-completeness options)
       "init-phase" (command-init-phase options)
@@ -566,7 +606,7 @@
       false)))
 
 (defn- tui? [opts]
-  (let [mode (or (:tui opts) "auto")]
+  (let [mode (or (:tui opts) "never")]
     (case mode
       "never" false
       "always" true

@@ -48,8 +48,12 @@
     (is (= "attention-required" (:status status)))
     (is (= ["src/runtime/core.clj"] (:changed-files status)))
     (is (seq (:open-obligations status)))
-    (is (= "trace" (get-in status [:open-obligations 0 :commands 0 :id])))
+    (is (= {:op "bridge/run-evidence" :args {:id "trace"}}
+           (select-keys (get-in status [:open-obligations 0 :actions 0])
+                        [:op :args])))
     (is (= 1 (next/exit-code status)))
+    (is (= "trace" (:evidence-id (next/next-action status))))
+    (is (re-find #"Next Action:" (next/render-plain status)))
     (is (re-find #"Pending Obligations" (next/render-plain status)))))
 
 (deftest status-model-reports-clear-when-no-change-or_existing-problems

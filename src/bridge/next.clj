@@ -91,11 +91,17 @@
       (if (every? #(some #{"passed"} %) statuses-per-kind) "completed" "open")
       :else "open")))
 
-(defn- command-suggestions [profile obligation]
+(defn- action-suggestions [profile obligation]
   (let [required (set (map evidence/normalize-evidence-kind (:required-evidence obligation)))]
     (->> (:canonical-commands profile)
          (filter #(contains? required (evidence/normalize-evidence-kind (:kind %))))
-         (mapv #(select-keys % [:id :kind :role :description :command :cwd])))))
+         (mapv (fn [cmd]
+                 {:op "bridge/run-evidence"
+                  :args {:id (:id cmd)}
+                  :evidence-id (:id cmd)
+                  :evidence-kind (some-> (:kind cmd) evidence/normalize-evidence-kind)
+                  :role (:role cmd)
+                  :description (:description cmd)})))))
 
 (defn- obligation-summary [profile statuses-by-kind obligation fallback-summary]
   (let [state (obligation-state statuses-by-kind obligation)
@@ -111,7 +117,7 @@
                   (:kind obligation))
      :reason (:reason obligation)
      :state state
-     :commands (command-suggestions profile obligation)}))
+     :actions (action-suggestions profile obligation)}))
 
 (defn- transient-obligations [profile artifacts intent]
   (let [statuses-by-kind (evidence-statuses-by-kind profile artifacts)
@@ -224,11 +230,36 @@
        (when-let [reason (:reason obligation)]
          (str " (" reason ")"))
        "\n"
-       (when-let [commands (seq (:commands obligation))]
+       (when-let [actions (seq (:actions obligation))]
          (apply str
-                (map (fn [{:keys [id command]}]
-                       (str "      -> " id ": " command "\n"))
-                     commands)))))
+                (map (fn [{:keys [evidence-id]}]
+                       (str "      -> bb bridge run-evidence --id " evidence-id "\n"))
+                     actions)))))
+
+(defn- action-from-obligation [state obligation]
+  (when-let [action (first (:actions obligation))]
+    (assoc action
+           :state state
+           :summary (:summary obligation)
+           :reason (:reason obligation)
+           :required-evidence (:required-evidence obligation))))
+
+(defn planned-actions [status]
+  (vec
+   (concat
+    (keep #(action-from-obligation "failed" %) (:failed-obligations status))
+    (keep #(action-from-obligation "open" %) (:open-obligations status)))))
+
+(defn next-action [status]
+  (first (planned-actions status)))
+
+(defn- render-next-action [color? status]
+  (when-let [{:keys [evidence-id summary reason]} (next-action status)]
+    (str (line (colorize color? "36" "Next Action:"))
+         "  Run evidence: bb bridge run-evidence --id " evidence-id "\n"
+         "  Why: " summary
+         (when reason (str " (" reason ")"))
+         "\n")))
 
 (defn render-plain
   ([status] (render-plain status {}))
@@ -254,6 +285,7 @@
       (when-not (seq (:changed-files status))
         (line "Changed files: none detected"))
       "\n"
+      (or (render-next-action color? status) "")
       (if (seq (:failed-obligations status))
         (str (line (colorize color? "31" "Failed Obligations:"))
              (apply str (map #(render-obligation color? "[!]" %) (:failed-obligations status))))
