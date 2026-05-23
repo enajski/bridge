@@ -288,7 +288,42 @@
 
 (defn hook-block [profile-path]
   (str hook-marker-start "\n"
-       "bb bridge check --profile " profile-path "\n"
+       "remote_name=\"${1:-origin}\"\n"
+       "had_range=0\n"
+       "fallback=0\n"
+       "zero_oid=\"0000000000000000000000000000000000000000\"\n"
+       "\n"
+       "while read -r local_ref local_sha remote_ref remote_sha; do\n"
+       "  if [[ -z \"${local_ref:-}\" ]]; then\n"
+       "    continue\n"
+       "  fi\n"
+       "\n"
+       "  if [[ \"$local_sha\" == \"$zero_oid\" ]]; then\n"
+       "    continue\n"
+       "  fi\n"
+       "\n"
+       "  spec=\"\"\n"
+       "  if [[ \"$remote_sha\" != \"$zero_oid\" ]]; then\n"
+       "    spec=\"$remote_sha..$local_sha\"\n"
+       "  else\n"
+       "    remote_branch=\"${remote_ref#refs/heads/}\"\n"
+       "    tracking_ref=\"refs/remotes/$remote_name/$remote_branch\"\n"
+       "    if git rev-parse --verify --quiet \"$tracking_ref\" >/dev/null; then\n"
+       "      spec=\"$tracking_ref...$local_sha\"\n"
+       "    else\n"
+       "      fallback=1\n"
+       "    fi\n"
+       "  fi\n"
+       "\n"
+       "  if [[ -n \"$spec\" ]]; then\n"
+       "    had_range=1\n"
+       "    bb bridge check --profile " profile-path " --git-diff \"$spec\"\n"
+       "  fi\n"
+       "done\n"
+       "\n"
+       "if [[ \"$had_range\" -eq 0 || \"$fallback\" -eq 1 ]]; then\n"
+       "  bb bridge check --profile " profile-path "\n"
+       "fi\n"
        hook-marker-end "\n"))
 
 (defn command-install-hooks [opts]
@@ -313,7 +348,8 @@
                                           "\\n?"))
           content (cond
                     (str/includes? existing hook-marker-start)
-                    (str/replace existing marker-pattern block)
+                    (str/replace existing marker-pattern
+                                 (java.util.regex.Matcher/quoteReplacement block))
 
                     (seq existing)
                     (str existing

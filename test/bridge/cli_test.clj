@@ -101,7 +101,12 @@
       (is (some #(str/includes? % "unit-tests")
                 (get-in intent [:change-intent :missing-obligations]))))
     (is (= hook-path (:installed (cli/dispatch ["install-hooks" "--root" (str dir)]))))
-    (is (str/includes? (bio/read-text hook-path) "bb bridge check --profile .bridge/profile.edn"))
+    (let [hook-text (bio/read-text hook-path)]
+      (is (str/includes? hook-text "while read -r local_ref local_sha remote_ref remote_sha; do"))
+      (is (str/includes? hook-text "--git-diff \"$spec\""))
+      (is (str/includes? hook-text "bb bridge check --profile .bridge/profile.edn"))
+      (is (str/includes? hook-text "tracking_ref=\"refs/remotes/$remote_name/$remote_branch\"")))
+    (is (= hook-path (:installed (cli/dispatch ["install-hooks" "--root" (str dir)]))))
     (is (.canExecute (io/file hook-path)))))
 
 (deftest cli-main-prints-friendly-bootstrap-output
