@@ -40,3 +40,29 @@
   (let [stub (schema/stub-artifact "change-intent-card")]
     (is (= "change-intent-card" (:artifact stub)))
     (is (contains? stub :change-id))))
+
+(def sandboxed-policy
+  {:artifact "verification-policy"
+   :policy-id "sandboxed"
+   :bridge-path-sandbox {:enforce? true
+                         :default-access "read-write"
+                         :rules [{:path-pattern ".bridge/verification-policy.yaml"
+                                  :access "read-only"
+                                  :reason "Policy changes require human approval."}
+                                 {:path-pattern ".bridge/ephemeral/evidence-runs/**"
+                                  :access "read-only"}]}
+   :rules [{:scope {:subsystems ["runtime"]}
+            :required-evidence {:unit-tests "required"}}]})
+
+(deftest validates-verification-policy-bridge-path-sandbox
+  (let [result (schema/validate-artifact-data sandboxed-policy)]
+    (is (:valid? result))
+    (is (empty? (:errors result)))))
+
+(deftest rejects-invalid-bridge-path-sandbox-access
+  (let [result (schema/validate-artifact-data
+                 (assoc-in sandboxed-policy
+                           [:bridge-path-sandbox :rules 0 :access]
+                           "admin"))]
+    (is (false? (:valid? result)))
+    (is (some #(= :invalid-enum (:type %)) (:errors result)))))

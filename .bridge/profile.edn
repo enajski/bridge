@@ -1,6 +1,6 @@
 {:subsystems
  [{:name "core",
-   :code-globs ["src/**/*"],
+   :code-globs ["src/**/*", "resources/**/*"],
    :docs-globs ["docs/**/*" "features/**/*"],
    :test-globs ["test/**/*"],
    :expected-artifacts

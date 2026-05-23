@@ -65,7 +65,7 @@ Bridge is designed for gradual adoption. You do not need to configure everything
 
 The workflow relies on two core configuration files:
 - **Project Profile (`profile.edn`)**: Maps directory structures and file paths to project subsystems, and registers the shell commands (e.g. unit tests, integration tests) used to verify them.
-- **Verification Policy (`verification-policy.yaml`)**: Defines what evidence is required for changes to specific subsystems before they are considered ready to merge.
+- **Verification Policy (`verification-policy.yaml`)**: Defines what evidence is required for changes to specific subsystems before they are considered ready to merge, and can declare sandbox access for Bridge-owned paths.
 
 ### Step 2: Check Status and Find Next Steps
 
@@ -144,7 +144,7 @@ bb bridge validate-dir .bridge/artifacts
 
 Bridge uses schema-validated data files (typically YAML or EDN format) to manage the verification state:
 
-- **`verification-policy`**: Declares the evidence requirements.
+- **`verification-policy`**: Declares evidence requirements and Bridge-owned path sandbox rules.
 - **`verification-brief`**: Records verification scope, methods, and assumptions.
 - **`observable-contract`**: Details runtime monitoring, triggers, and timing.
 - **`omission-decision-record`**: Explains why a required test or check was waived.

@@ -250,7 +250,15 @@
                                                         :optional {:high-risk-triggers {:type :vector :items {:type :string}}
                                                                    :revalidation-commands {:type :vector :items {:type :string}}}}
                                          :notes {:type :vector :items {:type :string}}}}}}
-   :optional {:citations {:type :vector :items {:type :string}}}}
+   :optional {:bridge-path-sandbox {:type :map
+                                    :required {:enforce? {:type :boolean}
+                                               :rules {:type :vector
+                                                       :items {:type :map
+                                                               :required {:path-pattern {:type :string}
+                                                                          :access {:type :enum :values ["read-only" "read-write" "none"]}}
+                                                               :optional {:reason {:type :string}}}}}
+                                    :optional {:default-access {:type :enum :values ["read-only" "read-write" "none"]}}}
+              :citations {:type :vector :items {:type :string}}}}
 
   "verification-brief"
   {:type :map
