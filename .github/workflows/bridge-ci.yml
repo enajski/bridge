@@ -23,9 +23,9 @@ jobs:
           java-version: "21"
 
       - name: Set up Babashka
-        uses: babashka/setup-babashka@v1
+        uses: DeLaGuardo/setup-clojure@13.2
         with:
-          version: latest
+          bb: latest
 
       - name: Resolve Bridge diff spec
         id: diff
