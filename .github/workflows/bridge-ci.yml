@@ -1,0 +1,61 @@
+name: Bridge CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  bridge:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Babashka
+        uses: babashka/setup-babashka@v1
+        with:
+          version: latest
+
+      - name: Resolve Bridge diff spec
+        id: diff
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+            echo "spec=origin/${{ github.base_ref }}...HEAD" >> "$GITHUB_OUTPUT"
+          else
+            echo "spec=HEAD^1" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run Bridge auto
+        run: |
+          bb bridge auto \
+            --profile .bridge/profile.edn \
+            --git-diff "${{ steps.diff.outputs.spec }}" \
+            --all
+
+      - name: Gate with Bridge check
+        run: |
+          bb bridge check \
+            --profile .bridge/profile.edn \
+            --git-diff "${{ steps.diff.outputs.spec }}"
+
+      - name: Upload Bridge receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bridge-ephemeral
+          path: .bridge/ephemeral
