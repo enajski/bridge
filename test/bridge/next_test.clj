@@ -3,10 +3,26 @@
             [bridge.next :as next]
             [bridge.profile :as profile]
             [clojure.java.io :as io]
+            [clojure.string :as str]
             [clojure.test :refer [deftest is]]))
 
 (defn temp-dir []
   (.toFile (java.nio.file.Files/createTempDirectory "bridge-next-test" (make-array java.nio.file.attribute.FileAttribute 0))))
+
+(defn run-git!
+  [dir & args]
+  (let [{:keys [exit err]} (bio/run-process {:argv (into ["git"] args)
+                                             :cwd (str dir)
+                                             :timeout-ms 10000})]
+    (when-not (zero? exit)
+      (throw (ex-info "git command failed" {:args args :stderr err}))))
+  dir)
+
+(defn init-git-repo! [dir]
+  (run-git! dir "init")
+  (run-git! dir "config" "user.name" "Bridge Tests")
+  (run-git! dir "config" "user.email" "bridge-tests@example.com")
+  dir)
 
 (defn profile [dir]
   {:kind "project-profile"
@@ -83,9 +99,9 @@
                      :workflow-state "active"
                      :missing-obligations ["Revalidate required evidence: trace-validation"]
                      :missing-obligations-structured [{:kind "evidence-rerun"
-                                                      :subject "runtime"
-                                                      :required-evidence ["trace-validation"]
-                                                      :reason "Need fresh trace validation."}]
+                                                       :subject "runtime"
+                                                       :required-evidence ["trace-validation"]
+                                                       :reason "Need fresh trace validation."}]
                      :stale-artifacts []
                      :open-questions []})
     (let [status (next/build-status loaded {:changed-files []})]
@@ -118,9 +134,37 @@
                      :failure-signals ["TraceAccepted false"]
                      :parsed-metrics {}
                      :subsystem-fingerprint (profile/subsystem-fingerprint loaded
-                                                                             (profile/subsystem-by-name loaded "runtime"))})
+                                                                           (profile/subsystem-by-name loaded "runtime"))})
     (let [status (next/build-status loaded {:changed-files []})
           rendered (next/render-plain status)]
       (is (= "attention-required" (:status status)))
       (is (= 1 (get-in status [:subject-problems 0 :failed-evidence-count])))
       (is (re-find #"evidence-failed=1" rendered)))))
+
+(deftest resolve-changed-files-supports-git-diff-spec
+  (let [dir (temp-dir)
+        _ (init-git-repo! dir)
+        _ (.mkdirs (io/file dir "src/runtime"))
+        _ (spit (io/file dir "src/runtime/core.clj") "(ns runtime.core)")
+        _ (run-git! dir "add" ".")
+        _ (run-git! dir "commit" "-m" "initial")
+        _ (spit (io/file dir "src/runtime/core.clj") "(ns runtime.core)\n(defn step [] :ok)\n")
+        _ (run-git! dir "add" "src/runtime/core.clj")
+        _ (run-git! dir "commit" "-m" "patch")
+        loaded (profile/normalize-profile (profile dir) (str (io/file dir "profile.edn")))
+        status (next/build-status loaded {:git-diff-spec "HEAD^1"})]
+    (is (= ["src/runtime/core.clj"] (next/resolve-changed-files loaded {:git-diff-spec "HEAD^1"})))
+    (is (= {:mode "git-diff" :spec "HEAD^1"} (:change-detection status)))
+    (is (= "git-diff:HEAD^1" (get-in status [:intent :change-id])))
+    (is (= "attention-required" (:status status)))))
+
+(deftest git-diff-errors-on-invalid-revspec
+  (let [dir (temp-dir)
+        _ (init-git-repo! dir)
+        loaded (profile/normalize-profile (profile dir) (str (io/file dir "profile.edn")))]
+    (try
+      (next/resolve-changed-files loaded {:git-diff-spec "not-a-ref"})
+      (is false "expected git diff to fail")
+      (catch clojure.lang.ExceptionInfo ex
+        (is (= "Git diff failed" (ex-message ex)))
+        (is (str/includes? (str (get-in (ex-data ex) [:argv])) "not-a-ref"))))))

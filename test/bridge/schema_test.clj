@@ -27,10 +27,10 @@
 
 (deftest detects-missing-required-unknown-and-bad-enum
   (let [result (schema/validate-artifact-data
-                 (-> good-brief
-                     (dissoc :subject)
-                     (assoc :category "weird")
-                     (assoc :surprise true)))]
+                (-> good-brief
+                    (dissoc :subject)
+                    (assoc :category "weird")
+                    (assoc :surprise true)))]
     (is (false? (:valid? result)))
     (is (some #(= :missing-required (:type %)) (:errors result)))
     (is (some #(= :unknown-field (:type %)) (:errors result)))
@@ -61,8 +61,8 @@
 
 (deftest rejects-invalid-bridge-path-sandbox-access
   (let [result (schema/validate-artifact-data
-                 (assoc-in sandboxed-policy
-                           [:bridge-path-sandbox :rules 0 :access]
-                           "admin"))]
+                (assoc-in sandboxed-policy
+                          [:bridge-path-sandbox :rules 0 :access]
+                          "admin"))]
     (is (false? (:valid? result)))
     (is (some #(= :invalid-enum (:type %)) (:errors result)))))

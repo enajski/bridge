@@ -21,6 +21,22 @@
         []))
     (catch Exception _ [])))
 
+(defn- process-lines [root argv]
+  (let [{:keys [exit out err timed-out?]} (bio/run-process {:argv argv
+                                                            :cwd root
+                                                            :timeout-ms 10000})]
+    (if (zero? exit)
+      (->> (str/split-lines out)
+           (map str/trim)
+           (remove str/blank?)
+           vec)
+      (throw (ex-info "Git diff failed"
+                      {:argv argv
+                       :cwd root
+                       :exit exit
+                       :timed-out? timed-out?
+                       :stderr err})))))
+
 (defn detect-git-changed-files [profile]
   (let [root (:root-path profile)]
     (->> (concat
@@ -30,6 +46,13 @@
          distinct
          vec)))
 
+(defn git-diff-changed-files [profile spec]
+  (let [root (:root-path profile)
+        argv (if (str/includes? spec "..")
+               ["git" "diff" "--name-only" spec]
+               ["git" "diff" "--name-only" spec "HEAD"])]
+    (process-lines root argv)))
+
 (defn- normalize-changed-files [profile changed-files]
   (->> changed-files
        (map #(bio/relativize-path (:root-path profile)
@@ -37,11 +60,29 @@
        distinct
        vec))
 
-(defn resolve-changed-files [profile explicit-files]
-  (let [files (if (seq explicit-files)
-                explicit-files
-                (detect-git-changed-files profile))]
+(defn resolve-changed-files
+  [profile opts]
+  (let [{:keys [changed-files git-diff-spec]} (or opts {})
+        files (cond
+                (seq changed-files) changed-files
+                git-diff-spec (git-diff-changed-files profile git-diff-spec)
+                :else (detect-git-changed-files profile))]
     (normalize-changed-files profile files)))
+
+(defn resolve-change-detection
+  [profile {:keys [changed-files git-diff-spec]}]
+  (let [mode (cond
+               (seq changed-files) "explicit-files"
+               git-diff-spec "git-diff"
+               :else "working-tree")]
+    {:changed-files (resolve-changed-files profile {:changed-files changed-files
+                                                    :git-diff-spec git-diff-spec})
+     :change-detection (cond-> {:mode mode}
+                         git-diff-spec (assoc :spec git-diff-spec))
+     :change-id (cond
+                  (seq changed-files) "explicit-files"
+                  git-diff-spec (str "git-diff:" git-diff-spec)
+                  :else "working-tree")}))
 
 (defn- load-policy [profile]
   (let [policy-path (or (:verification-policy-path profile)
@@ -172,48 +213,52 @@
        vec))
 
 (defn build-status
-  ([profile] (build-status profile {}))
-  ([profile {:keys [changed-files policy]}]
-   (let [changed-files* (resolve-changed-files profile changed-files)
-         policy (or policy (load-policy profile))
-         artifact-root (get-in profile [:artifact-paths :root])
-         artifacts (if artifact-root (artifacts/find-artifacts artifact-root) [])
-         intent (when (seq changed-files*)
-                  (change/initial-change-intent profile policy changed-files* "working-tree"))
-         obligations (if intent (transient-obligations profile artifacts intent) [])
-         recommendations (if intent (transient-recommendations profile artifacts intent) [])
-         open-obligations (filterv #(= "open" (:state %)) obligations)
-         failed-obligations (filterv #(= "failed" (:state %)) obligations)
-         completed-obligations (filterv #(= "completed" (:state %)) obligations)
-         open-recommendations (filterv #(= "open" (:state %)) recommendations)
-         convergence (status/convergence-report profile artifact-root)
-         subject-problems* (subject-problems convergence)
-         stale-artifacts (vec (:stale-artifacts-detailed intent))
-         issue-count (+ (count open-obligations)
-                        (count failed-obligations)
-                        (count stale-artifacts)
-                        (count subject-problems*))]
-     {:project (:project-name profile)
-      :profile-source-path (:source-path profile)
-      :profile-root (:root-path profile)
-      :artifact-root artifact-root
-      :changed-files changed-files*
-      :active-change? (boolean (seq changed-files*))
-      :intent (some-> intent
-                      (select-keys [:change-id :change-sources :inferred-intent
-                                    :semantic-scope :risk-class :workflow-state
-                                    :open-questions]))
-      :open-obligations open-obligations
-      :failed-obligations failed-obligations
-      :completed-obligations completed-obligations
-      :recommended-obligations open-recommendations
-      :stale-artifacts stale-artifacts
-      :completed-evidence (completed-evidence profile artifacts)
-      :subject-problems subject-problems*
-      :convergence-summary (select-keys convergence
-                                        [:converged-subject-count :regressed-subject-count])
-      :status (if (zero? issue-count) "clear" "attention-required")
-      :issue-count issue-count})))
+  [profile opts]
+  (let [{:keys [changed-files git-diff-spec policy]} (or opts {})
+        {:keys [changed-files change-detection change-id]}
+        (resolve-change-detection profile {:changed-files changed-files
+                                           :git-diff-spec git-diff-spec})
+        changed-files* changed-files
+        policy (or policy (load-policy profile))
+        artifact-root (get-in profile [:artifact-paths :root])
+        artifacts (if artifact-root (artifacts/find-artifacts artifact-root) [])
+        intent (when (seq changed-files*)
+                 (change/initial-change-intent profile policy changed-files* change-id))
+        obligations (if intent (transient-obligations profile artifacts intent) [])
+        recommendations (if intent (transient-recommendations profile artifacts intent) [])
+        open-obligations (filterv #(= "open" (:state %)) obligations)
+        failed-obligations (filterv #(= "failed" (:state %)) obligations)
+        completed-obligations (filterv #(= "completed" (:state %)) obligations)
+        open-recommendations (filterv #(= "open" (:state %)) recommendations)
+        convergence (status/convergence-report profile artifact-root)
+        subject-problems* (subject-problems convergence)
+        stale-artifacts (vec (:stale-artifacts-detailed intent))
+        issue-count (+ (count open-obligations)
+                       (count failed-obligations)
+                       (count stale-artifacts)
+                       (count subject-problems*))]
+    {:project (:project-name profile)
+     :profile-source-path (:source-path profile)
+     :profile-root (:root-path profile)
+     :artifact-root artifact-root
+     :changed-files changed-files*
+     :change-detection change-detection
+     :active-change? (boolean (seq changed-files*))
+     :intent (some-> intent
+                     (select-keys [:change-id :change-sources :inferred-intent
+                                   :semantic-scope :risk-class :workflow-state
+                                   :open-questions]))
+     :open-obligations open-obligations
+     :failed-obligations failed-obligations
+     :completed-obligations completed-obligations
+     :recommended-obligations open-recommendations
+     :stale-artifacts stale-artifacts
+     :completed-evidence (completed-evidence profile artifacts)
+     :subject-problems subject-problems*
+     :convergence-summary (select-keys convergence
+                                       [:converged-subject-count :regressed-subject-count])
+     :status (if (zero? issue-count) "clear" "attention-required")
+     :issue-count issue-count}))
 
 (defn exit-code [status]
   (if (= "clear" (:status status)) 0 1))

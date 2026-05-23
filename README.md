@@ -119,6 +119,9 @@ bb bridge init
 # Verify current status and list missing evidence
 bb bridge check
 
+# Evaluate the last committed patch instead of the live working tree
+bb bridge check --git-diff HEAD^1
+
 # Show the recommended next verification step
 bb bridge next
 

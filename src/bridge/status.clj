@@ -172,9 +172,9 @@
   ([artifact-root]
    (let [items (artifacts/find-artifacts artifact-root)
          by-subject (->> items
-                          (group-by artifacts/subject-of)
-                          (remove (comp nil? key))
-                          (into {}))
+                         (group-by artifacts/subject-of)
+                         (remove (comp nil? key))
+                         (into {}))
          summaries (into {}
                          (map (fn [[subject xs]] [subject (subject-summary nil xs)]))
                          by-subject)]

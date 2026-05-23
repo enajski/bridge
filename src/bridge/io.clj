@@ -27,14 +27,14 @@
 
 (defn keywordize-data [value]
   (walk/postwalk
-    (fn [node]
-      (if (map? node)
-        (into {}
-              (map (fn [[k v]]
-                     [(if (string? k) (keyword k) k) v]))
-              node)
-        node))
-    value))
+   (fn [node]
+     (if (map? node)
+       (into {}
+             (map (fn [[k v]]
+                    [(if (string? k) (keyword k) k) v]))
+             node)
+       node))
+   value))
 
 (defn ensure-parent! [path]
   (let [file (io/file path)
@@ -143,6 +143,31 @@
         stdout-file (.toFile (Files/createTempFile "bridge-command-" ".stdout" attrs))
         stderr-file (.toFile (Files/createTempFile "bridge-command-" ".stderr" attrs))
         builder (doto (ProcessBuilder. (into [] (concat shell [command])))
+                  (.redirectOutput stdout-file)
+                  (.redirectError stderr-file))]
+    (try
+      (when cwd
+        (.directory builder (io/file cwd)))
+      (let [process (.start builder)
+            completed? (.waitFor process (long timeout-ms) java.util.concurrent.TimeUnit/MILLISECONDS)]
+        (when-not completed?
+          (.destroyForcibly process)
+          (.waitFor process))
+        {:exit (if completed? (.exitValue process) 124)
+         :out (slurp stdout-file)
+         :err (slurp stderr-file)
+         :timed-out? (not completed?)})
+      (finally
+        (Files/deleteIfExists (.toPath stdout-file))
+        (Files/deleteIfExists (.toPath stderr-file))))))
+
+(defn run-process
+  [{:keys [argv cwd timeout-ms]
+    :or {timeout-ms 300000}}]
+  (let [attrs (make-array java.nio.file.attribute.FileAttribute 0)
+        stdout-file (.toFile (Files/createTempFile "bridge-process-" ".stdout" attrs))
+        stderr-file (.toFile (Files/createTempFile "bridge-process-" ".stderr" attrs))
+        builder (doto (ProcessBuilder. (into [] argv))
                   (.redirectOutput stdout-file)
                   (.redirectError stderr-file))]
     (try

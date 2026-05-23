@@ -78,6 +78,19 @@
     (vector? x) x
     :else [x]))
 
+(defn change-selection [opts]
+  (let [changed-files (ensure-vector (:changed-file opts))
+        git-diff-spec (:git-diff opts)]
+    (when (and (seq changed-files) git-diff-spec)
+      (throw (ex-info "Use either --changed-file or --git-diff, not both"
+                      {:changed-files changed-files
+                       :git-diff git-diff-spec})))
+    {:changed-files changed-files
+     :git-diff-spec git-diff-spec}))
+
+(defn resolve-selected-files [profile opts]
+  (next-guide/resolve-changed-files profile (change-selection opts)))
+
 (defn load-profile+policy [opts]
   (let [profile (profile/load-profile (profile-option opts))
         policy-path (or (:policy opts)
@@ -91,76 +104,76 @@
 
 (def help-text
   (str/join
-    "\n"
-    ["bridge CLI"
-     ""
-     "Stable commands:"
-     "  init [--root DIR]"
-     "      Create .bridge/profile.edn and verification-policy.yaml."
-     "  init-profile --path FILE"
-     "      Write a starter project profile."
-     "  install-hooks [--profile FILE] [--root DIR]"
-     "      Install a Bridge pre-push check hook."
-     "  validate-artifact FILE"
-     "      Validate one Bridge artifact or profile."
-     "  validate-dir DIR"
-     "      Validate all artifacts in a directory."
-     "  summary --profile FILE"
-     "      Summarize configured subjects and artifacts."
-     "  debug-profile --profile FILE [--changed-file PATH]..."
-     "      Show normalized profile paths, globs, and matches."
-     "  coverage --profile FILE"
-     "      Summarize artifact coverage against profile expectations."
-     "  coverage-as-evidence --profile FILE"
-     "      Emit requirement traceability coverage as docs-or-nl-spec evidence."
-     "  analyze-change --profile FILE --changed-file PATH [--changed-file PATH]... [--out FILE]"
-     "      Build a change-intent card from changed files."
-     "  check [--profile FILE] [--changed-file PATH]... [--format text|edn] [--no-color]"
-     "      Print status for automation and exit nonzero on issues."
-     "  next [--profile FILE] [--changed-file PATH]... [--tui never|always|auto] [--no-color]"
-     "      Show the next verification work for a repo. Plain text is the default."
-     "  auto [--profile FILE] [--changed-file PATH]... [--dry-run] [--continue-on-failure] [--id ID]"
-     "      Explicitly run planned evidence commands and record receipts."
-     "  list-evidence --profile FILE"
-     "      List runnable evidence commands from the profile."
-     "  run-evidence --profile FILE --id ID [--subject SUBJECT] [--out FILE] [--out-dir DIR] [--timeout-seconds N] [--dry-run]"
-     "      Run one evidence command and record a receipt."
-     ""
-     "Experimental commands:"
-     "  list-templates"
-     "      List available prompt templates."
-     "  render-prompt --template ID --profile FILE [--out FILE] [--changed-file PATH]..."
-     "      Render an agent prompt from a profile."
-     "  query --profile FILE SUBJECT [FIELD]"
-     "      Query existing artifacts by subject and field."
-     "  stub-artifact --kind KIND --out FILE"
-     "      Write a schema-shaped artifact stub."
-     "  missing-artifacts --profile FILE"
-     "      List expected artifacts that are not present."
-     "  generate-brief --profile FILE [--subsystem NAME] [--changed-file PATH]... [--out FILE]"
-     "      Generate a verification brief draft."
-     "  generate-observable --profile FILE [--subsystem NAME] [--changed-file PATH]... [--out FILE]"
-     "      Generate an observable-contract draft."
-     "  plan-seed --profile FILE [--changed-file PATH]... [--out FILE]"
-     "      Generate a phase handoff seed."
-     "  convergence --profile FILE"
-     "      Report workflow convergence from artifacts."
-     "  completeness --profile FILE"
-     "      Summarize completeness ledgers."
-     "  init-phase --profile FILE --phase ID [--out FILE]"
-     "      Initialize a configured workflow phase output."
-     "  run-phase --profile FILE --phase ID [--changed-file PATH]... [--out FILE]"
-     "      Run one configured workflow phase."
-     "  run-phases --profile FILE [--phase ID]... [--changed-file PATH]... [--continue-on-error]"
-     "      Run configured workflow phases."
-     "  eval --profile FILE [--out FILE]"
-     "      Run an evaluation profile."
-     "  feasibility-report --artifact FILE --out FILE"
-     "      Render a feasibility-study report."
-     "  sysmobench-adapt --task-yaml FILE --out-dir DIR [--invariants FILE]"
-     "      Convert a SysMoBench task into Bridge artifacts."
-     ""
-     "Formal verification, evaluation adapters, and generated formal linkage are experimental and opt-in."]))
+   "\n"
+   ["bridge CLI"
+    ""
+    "Stable commands:"
+    "  init [--root DIR]"
+    "      Create .bridge/profile.edn and verification-policy.yaml."
+    "  init-profile --path FILE"
+    "      Write a starter project profile."
+    "  install-hooks [--profile FILE] [--root DIR]"
+    "      Install a Bridge pre-push check hook."
+    "  validate-artifact FILE"
+    "      Validate one Bridge artifact or profile."
+    "  validate-dir DIR"
+    "      Validate all artifacts in a directory."
+    "  summary --profile FILE"
+    "      Summarize configured subjects and artifacts."
+    "  debug-profile --profile FILE [--changed-file PATH]..."
+    "      Show normalized profile paths, globs, and matches."
+    "  coverage --profile FILE"
+    "      Summarize artifact coverage against profile expectations."
+    "  coverage-as-evidence --profile FILE"
+    "      Emit requirement traceability coverage as docs-or-nl-spec evidence."
+    "  analyze-change --profile FILE [--changed-file PATH]... [--git-diff SPEC] [--out FILE]"
+    "      Build a change-intent card from changed files."
+    "  check [--profile FILE] [--changed-file PATH]... [--git-diff SPEC] [--format text|edn] [--no-color]"
+    "      Print status for automation and exit nonzero on issues."
+    "  next [--profile FILE] [--changed-file PATH]... [--git-diff SPEC] [--tui never|always|auto] [--no-color]"
+    "      Show the next verification work for a repo. Plain text is the default."
+    "  auto [--profile FILE] [--changed-file PATH]... [--git-diff SPEC] [--dry-run] [--continue-on-failure] [--id ID]"
+    "      Explicitly run planned evidence commands and record receipts."
+    "  list-evidence --profile FILE"
+    "      List runnable evidence commands from the profile."
+    "  run-evidence --profile FILE --id ID [--subject SUBJECT] [--out FILE] [--out-dir DIR] [--timeout-seconds N] [--dry-run]"
+    "      Run one evidence command and record a receipt."
+    ""
+    "Experimental commands:"
+    "  list-templates"
+    "      List available prompt templates."
+    "  render-prompt --template ID --profile FILE [--out FILE] [--changed-file PATH]... [--git-diff SPEC]"
+    "      Render an agent prompt from a profile."
+    "  query --profile FILE SUBJECT [FIELD]"
+    "      Query existing artifacts by subject and field."
+    "  stub-artifact --kind KIND --out FILE"
+    "      Write a schema-shaped artifact stub."
+    "  missing-artifacts --profile FILE"
+    "      List expected artifacts that are not present."
+    "  generate-brief --profile FILE [--subsystem NAME] [--changed-file PATH]... [--git-diff SPEC] [--out FILE]"
+    "      Generate a verification brief draft."
+    "  generate-observable --profile FILE [--subsystem NAME] [--changed-file PATH]... [--git-diff SPEC] [--out FILE]"
+    "      Generate an observable-contract draft."
+    "  plan-seed --profile FILE [--changed-file PATH]... [--git-diff SPEC] [--out FILE]"
+    "      Generate a phase handoff seed."
+    "  convergence --profile FILE"
+    "      Report workflow convergence from artifacts."
+    "  completeness --profile FILE"
+    "      Summarize completeness ledgers."
+    "  init-phase --profile FILE --phase ID [--out FILE]"
+    "      Initialize a configured workflow phase output."
+    "  run-phase --profile FILE --phase ID [--changed-file PATH]... [--git-diff SPEC] [--out FILE]"
+    "      Run one configured workflow phase."
+    "  run-phases --profile FILE [--phase ID]... [--changed-file PATH]... [--git-diff SPEC] [--continue-on-error]"
+    "      Run configured workflow phases."
+    "  eval --profile FILE [--out FILE]"
+    "      Run an evaluation profile."
+    "  feasibility-report --artifact FILE --out FILE"
+    "      Render a feasibility-study report."
+    "  sysmobench-adapt --task-yaml FILE --out-dir DIR [--invariants FILE]"
+    "      Convert a SysMoBench task into Bridge artifacts."
+    ""
+    "Formal verification, evaluation adapters, and generated formal linkage are experimental and opt-in."]))
 
 (defn default-policy [project-name]
   {:artifact "verification-policy"
@@ -322,7 +335,7 @@
 
 (defn command-render-prompt [opts]
   (let [{:keys [profile]} (load-profile+policy opts)
-        files (ensure-vector (:changed-file opts))
+        files (resolve-selected-files profile opts)
         rendered (templates/render-from-profile (require-option opts :template)
                                                 profile
                                                 {:subsystem (when-let [s (:subsystem opts)]
@@ -395,7 +408,7 @@
 
 (defn command-analyze-change [opts]
   (let [{:keys [profile policy]} (load-profile+policy opts)
-        files (ensure-vector (:changed-file opts))
+        files (resolve-selected-files profile opts)
         change-card (change/initial-change-intent profile policy files (or (:change-id opts) "change-1"))
         reports (change/change-impact-reports profile files)]
     (if-let [out (:out opts)]
@@ -408,7 +421,8 @@
 
 (defn command-generate-brief [opts]
   (let [{:keys [profile policy]} (load-profile+policy opts)
-        artifact (brief/generate-brief profile policy {:changed-files (ensure-vector (:changed-file opts))
+        files (resolve-selected-files profile opts)
+        artifact (brief/generate-brief profile policy {:changed-files files
                                                        :subsystem (when-let [s (:subsystem opts)]
                                                                     (profile/subsystem-by-name profile s))
                                                        :subject (:subject opts)})]
@@ -418,10 +432,11 @@
 
 (defn command-generate-observable [opts]
   (let [{:keys [profile]} (load-profile+policy opts)
+        files (resolve-selected-files profile opts)
         subsystem-name (or (:subsystem opts)
-                           (some-> (first (profile/match-subsystems profile (ensure-vector (:changed-file opts)))) :name))
+                           (some-> (first (profile/match-subsystems profile files)) :name))
         artifact (observe/generate-observable-contract profile {:subsystem-name (some-> subsystem-name str)
-                                                                :changed-files (ensure-vector (:changed-file opts))
+                                                                :changed-files files
                                                                 :subject (:subject opts)})]
     (if-let [out (:out opts)]
       (do (bio/write-data out artifact) {:written out})
@@ -429,7 +444,7 @@
 
 (defn command-plan-seed [opts]
   (let [{:keys [profile policy]} (load-profile+policy opts)
-        seed (brief/plan-seed profile policy {:changed-files (ensure-vector (:changed-file opts))
+        seed (brief/plan-seed profile policy {:changed-files (resolve-selected-files profile opts)
                                               :change-id (:change-id opts)})]
     (if-let [out (:out opts)]
       (do (bio/write-data out seed) {:written out})
@@ -437,13 +452,13 @@
 
 (defn command-check [opts]
   (let [{:keys [profile policy]} (load-profile+policy opts)]
-    {:bridge-check (next-guide/build-status profile {:changed-files (ensure-vector (:changed-file opts))
-                                                     :policy policy})}))
+    {:bridge-check (next-guide/build-status profile (merge (change-selection opts)
+                                                           {:policy policy}))}))
 
 (defn command-next [opts]
   (let [{:keys [profile policy]} (load-profile+policy opts)]
-    {:bridge-next (next-guide/build-status profile {:changed-files (ensure-vector (:changed-file opts))
-                                                     :policy policy})}))
+    {:bridge-next (next-guide/build-status profile (merge (change-selection opts)
+                                                          {:policy policy}))}))
 
 (defn command-convergence [opts]
   (let [profile (:profile (load-profile+policy opts))]
@@ -462,7 +477,7 @@
   (let [{:keys [profile policy]} (load-profile+policy opts)]
     (workflow/run-phase! profile
                          (require-option opts :phase)
-                         {:changed-files (ensure-vector (:changed-file opts))
+                         {:changed-files (resolve-selected-files profile opts)
                           :policy policy
                           :out-path (:out opts)
                           :subject (:subject opts)
@@ -473,7 +488,7 @@
   (let [{:keys [profile policy]} (load-profile+policy opts)]
     (workflow/run-phases! profile
                           (ensure-vector (:phase opts))
-                          {:changed-files (ensure-vector (:changed-file opts))
+                          {:changed-files (resolve-selected-files profile opts)
                            :policy policy
                            :subject (:subject opts)
                            :continue-on-error? (boolean (:continue-on-error opts))
@@ -502,8 +517,8 @@
 
 (defn command-auto [opts]
   (let [{:keys [profile policy]} (load-profile+policy opts)
-        status (next-guide/build-status profile {:changed-files (ensure-vector (:changed-file opts))
-                                                 :policy policy})
+        status (next-guide/build-status profile (merge (change-selection opts)
+                                                       {:policy policy}))
         planned (select-auto-actions (next-guide/planned-actions status) opts)]
     (if (:dry-run opts)
       {:auto {:dry-run? true
@@ -580,7 +595,7 @@
                            (when-not task-yaml (throw (ex-info "--task-yaml required" {})))
                            (when-not out-dir (throw (ex-info "--out-dir required" {})))
                            (sysmobench/write-artifacts task-yaml out-dir :invariants-path invariants))
-      (throw (ex-info "Unknown command" {:command command :help help-text})))) )
+      (throw (ex-info "Unknown command" {:command command :help help-text})))))
 
 (defn- parsed-command [args]
   (let [{:keys [options positionals]} (parse-args args)]

@@ -74,10 +74,10 @@
                       " invariants (" (:safety-count inv-info) " safety, "
                       (:liveness-count inv-info) " liveness)."))]
      :concern-classes (vec (distinct
-                             (concat
-                               (when (and inv-info (pos? (:safety-count inv-info))) ["safety"])
-                               (when (and inv-info (pos? (:liveness-count inv-info))) ["liveness"])
-                               ["spec-fidelity"])))
+                            (concat
+                             (when (and inv-info (pos? (:safety-count inv-info))) ["safety"])
+                             (when (and inv-info (pos? (:liveness-count inv-info))) ["liveness"])
+                             ["spec-fidelity"])))
      :environment-assumptions (mapv :description base-assumptions)
      :mechanism-families (mapv (fn [mf]
                                  {:name (:name mf)
@@ -93,10 +93,10 @@
                  "Do NOT model internal/noise archetypes outside target actions."]
      :handoff-outputs []
      :open-questions (vec (concat
-                            (when (empty? target-actions)
-                              ["No target_actions in task.yaml wv config."])
-                            (when (empty? trace-map)
-                              ["No trace_action_map — trace validation scoring may fail."])))}))
+                           (when (empty? target-actions)
+                             ["No target_actions in task.yaml wv config."])
+                           (when (empty? trace-map)
+                             ["No trace_action_map — trace validation scoring may fail."])))}))
 
 ;; --- Observable contract generation ---
 
@@ -133,18 +133,18 @@
     {:artifact "assumption-ledger"
      :subject (:name task)
      :code-assumptions (vec (concat
-                              base-assumptions
-                              (when (:docker_image harness)
-                                [{:id "docker-harness"
-                                  :description (str "Traces collected via Docker image: " (:docker_image harness))
-                                  :tla-implication "Trace timing may differ from bare-metal execution."
-                                  :risk "Docker scheduling can affect trace ordering."}])
-                              (when-let [action-map (or (:trace_action_map harness)
-                                                        (:trace-action-map harness))]
-                                [{:id "trace-action-mapping"
-                                  :description (str "Trace labels mapped to " (count action-map) " spec actions. Unmapped labels carry action=null.")
-                                  :tla-implication "Only mapped actions are scored. Internal labels are noise."
-                                  :risk "Wrong mapping → 0% score for affected action."}])))
+                             base-assumptions
+                             (when (:docker_image harness)
+                               [{:id "docker-harness"
+                                 :description (str "Traces collected via Docker image: " (:docker_image harness))
+                                 :tla-implication "Trace timing may differ from bare-metal execution."
+                                 :risk "Docker scheduling can affect trace ordering."}])
+                             (when-let [action-map (or (:trace_action_map harness)
+                                                       (:trace-action-map harness))]
+                               [{:id "trace-action-mapping"
+                                 :description (str "Trace labels mapped to " (count action-map) " spec actions. Unmapped labels carry action=null.")
+                                 :tla-implication "Only mapped actions are scored. Internal labels are noise."
+                                 :risk "Wrong mapping → 0% score for affected action."}])))
      :differential-assumptions []
      :formal-assumptions []}))
 

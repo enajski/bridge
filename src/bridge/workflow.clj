@@ -56,14 +56,14 @@
       (let [artifact-kind (:artifact-kind phase)
             artifact (case artifact-kind
                        "verification-brief" (brief/generate-brief profile policy {:changed-files changed-files
-                                                                                   :subsystem subsystem
-                                                                                   :subject subject})
+                                                                                  :subsystem subsystem
+                                                                                  :subject subject})
                        "observable-contract" (observe/generate-observable-contract profile {:subsystem-name (or (some-> subsystem :name)
-                                                                                                                    (some-> (first (profile/match-subsystems profile changed-files)) :name))
+                                                                                                                (some-> (first (profile/match-subsystems profile changed-files)) :name))
                                                                                             :changed-files changed-files
                                                                                             :subject subject})
                        (assoc (schema/stub-artifact artifact-kind)
-                         :subject (or subject (:project-name profile))))]
+                              :subject (or subject (:project-name profile))))]
         (bio/write-data target artifact)
         {:phase (:id phase) :path target :artifact artifact})
 
@@ -76,7 +76,7 @@
 
       :generate-observable
       (let [artifact (observe/generate-observable-contract profile {:subsystem-name (or (some-> subsystem :name)
-                                                                                          (some-> (first (profile/match-subsystems profile changed-files)) :name))
+                                                                                        (some-> (first (profile/match-subsystems profile changed-files)) :name))
                                                                     :changed-files changed-files
                                                                     :subject subject})]
         (bio/write-data target artifact)

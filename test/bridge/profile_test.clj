@@ -71,8 +71,8 @@
         data (-> (base-profile ".")
                  (dissoc :formal-paths)
                  (update :subsystems #(mapv (fn [subsystem]
-                                               (dissoc subsystem :formal-globs))
-                                             %)))]
+                                              (dissoc subsystem :formal-globs))
+                                            %)))]
     (bio/write-data profile-path data)
     (let [loaded (profile/load-profile profile-path)]
       (is (= [] (:formal-paths loaded)))

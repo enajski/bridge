@@ -8,6 +8,21 @@
 (defn temp-dir []
   (.toFile (java.nio.file.Files/createTempDirectory "bridge-cli-test" (make-array java.nio.file.attribute.FileAttribute 0))))
 
+(defn run-git!
+  [dir & args]
+  (let [{:keys [exit err]} (bio/run-process {:argv (into ["git"] args)
+                                             :cwd (str dir)
+                                             :timeout-ms 10000})]
+    (when-not (zero? exit)
+      (throw (ex-info "git command failed" {:args args :stderr err}))))
+  dir)
+
+(defn init-git-repo! [dir]
+  (run-git! dir "init")
+  (run-git! dir "config" "user.name" "Bridge Tests")
+  (run-git! dir "config" "user.email" "bridge-tests@example.com")
+  dir)
+
 (deftest cli-dispatches-help-and-template-list
   (is (string? (:help (cli/dispatch []))))
   (is (str/includes? (:help (cli/dispatch [])) "Stable commands:"))
@@ -30,9 +45,9 @@
               *err* sw]
       (cli/-main "wat"))
     (let [output (str sw)]
-    (is (str/includes? output "Unknown command"))
-    (is (str/includes? output "Stable commands:"))
-    (is (str/includes? output "Experimental commands:")))))
+      (is (str/includes? output "Unknown command"))
+      (is (str/includes? output "Stable commands:"))
+      (is (str/includes? output "Experimental commands:")))))
 
 (deftest cli-happy-path-init-stub-validate
   (let [dir (temp-dir)
@@ -413,6 +428,61 @@
       (is (= "attention-required"
              (get-in (cli/dispatch ["check" "--changed-file" "src/runtime/core.clj"])
                      [:bridge-check :status]))))))
+
+(deftest cli-check-supports-git-diff-spec
+  (let [dir (temp-dir)
+        _ (init-git-repo! dir)
+        _ (.mkdirs (io/file dir "src/runtime"))
+        _ (.mkdirs (io/file dir "artifacts"))
+        _ (spit (io/file dir "src/runtime/core.clj") "(ns runtime.core)")
+        profile-path (str (io/file dir "profile.edn"))]
+    (bio/write-data profile-path
+                    {:kind "project-profile"
+                     :project-name "demo"
+                     :root-path "."
+                     :code-paths ["src"] :docs-paths ["docs"] :formal-paths ["specs"] :test-paths ["test"]
+                     :artifact-paths {:root "artifacts" :phases "artifacts/phases" :evidence "artifacts/evidence" :evaluations "artifacts/evaluations"}
+                     :canonical-commands [{:id "trace" :kind "trace-validation" :role "conformance" :command "echo trace"}]
+                     :subsystems [{:name "runtime"
+                                   :code-globs ["src/runtime/**/*.clj"]
+                                   :docs-globs []
+                                   :formal-globs []
+                                   :test-globs []
+                                   :expected-artifacts ["verification-brief"]
+                                   :expected-evidence ["trace-validation"]
+                                   :system-category "async-runtime"}]
+                     :file-glob-rules [{:glob "src/runtime/**/*.clj"
+                                        :subsystem "runtime"
+                                        :mechanism-family "verification-harness"
+                                        :concern-class "liveness"}]
+                     :phases []})
+    (run-git! dir "add" ".")
+    (run-git! dir "commit" "-m" "initial")
+    (spit (io/file dir "src/runtime/core.clj") "(ns runtime.core)\n(defn step [] :ok)\n")
+    (run-git! dir "add" "src/runtime/core.clj")
+    (run-git! dir "commit" "-m" "patch")
+    (let [check (cli/dispatch ["check" "--profile" profile-path "--git-diff" "HEAD^1"])]
+      (is (= "attention-required" (get-in check [:bridge-check :status])))
+      (is (= ["src/runtime/core.clj"] (get-in check [:bridge-check :changed-files])))
+      (is (= {:mode "git-diff" :spec "HEAD^1"}
+             (get-in check [:bridge-check :change-detection]))))))
+
+(deftest cli-rejects-mixed-change-selectors
+  (let [dir (temp-dir)
+        profile-path (str (io/file dir "profile.edn"))]
+    (bio/write-data profile-path
+                    {:kind "project-profile"
+                     :project-name "demo"
+                     :root-path "."
+                     :code-paths ["src"] :docs-paths ["docs"] :formal-paths ["specs"] :test-paths ["test"]
+                     :artifact-paths {:root "artifacts" :phases "artifacts/phases" :evidence "artifacts/evidence" :evaluations "artifacts/evaluations"}
+                     :canonical-commands []
+                     :subsystems []
+                     :phases []})
+    (is (thrown-with-msg?
+         clojure.lang.ExceptionInfo
+         #"Use either --changed-file or --git-diff"
+         (cli/dispatch ["check" "--profile" profile-path "--changed-file" "src/foo.clj" "--git-diff" "HEAD^1"])))))
 
 (deftest cli-coverage-as-evidence-reports-unlinked-requirements
   (let [dir (temp-dir)

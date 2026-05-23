@@ -79,14 +79,14 @@
                                               {:field k}))))
                            [])
           child-errors (concat
-                         (mapcat (fn [[k subschema]]
-                                   (when (contains? value k)
-                                     (validate* subschema (get value k) (conj path k))))
-                                 required)
-                         (mapcat (fn [[k subschema]]
-                                   (when (contains? value k)
-                                     (validate* subschema (get value k) (conj path k))))
-                                 optional))]
+                        (mapcat (fn [[k subschema]]
+                                  (when (contains? value k)
+                                    (validate* subschema (get value k) (conj path k))))
+                                required)
+                        (mapcat (fn [[k subschema]]
+                                  (when (contains? value k)
+                                    (validate* subschema (get value k) (conj path k))))
+                                optional))]
       (vec (concat missing-errors unknown-errors child-errors)))))
 
 (defn- validate-vector [schema value path]
@@ -97,12 +97,12 @@
           max-count (:max schema)
           len (count items)
           size-errors (concat
-                        (when (< len min-count)
-                          [(error :invalid-size path (str "Expected at least " min-count " item(s)")
-                                  {:min min-count :actual len})])
-                        (when (and max-count (> len max-count))
-                          [(error :invalid-size path (str "Expected at most " max-count " item(s)")
-                                  {:max max-count :actual len})]))]
+                       (when (< len min-count)
+                         [(error :invalid-size path (str "Expected at least " min-count " item(s)")
+                                 {:min min-count :actual len})])
+                       (when (and max-count (> len max-count))
+                         [(error :invalid-size path (str "Expected at most " max-count " item(s)")
+                                 {:max max-count :actual len})]))]
       (vec (concat size-errors
                    (mapcat (fn [idx item]
                              (validate* (:items schema) item (conj path idx)))
@@ -113,11 +113,11 @@
   (if-not (map? value)
     [(error :invalid-type path (str "Expected map, got " (pr-str value)) {:expected :map :actual value})]
     (vec
-      (concat
-        (mapcat (fn [[k v]]
-                  (concat (validate* (:keys schema) k (conj path :key))
-                          (validate* (:values schema) v (conj path k))))
-                value)))))
+     (concat
+      (mapcat (fn [[k v]]
+                (concat (validate* (:keys schema) k (conj path :key))
+                        (validate* (:values schema) v (conj path k))))
+              value)))))
 
 (defn validate* [schema value path]
   (let [schema-type (:type schema)]
@@ -201,9 +201,9 @@
 
 (defn explain-errors [result]
   (concat
-    (map (fn [{:keys [path message]}]
-           (str "ERROR " (if (seq path) (pr-str path) "<root>") ": " message))
-         (:errors result))
-    (map (fn [{:keys [message]}]
-           (str "WARN: " message))
-         (:warnings result))))
+   (map (fn [{:keys [path message]}]
+          (str "ERROR " (if (seq path) (pr-str path) "<root>") ": " message))
+        (:errors result))
+   (map (fn [{:keys [message]}]
+          (str "WARN: " message))
+        (:warnings result))))

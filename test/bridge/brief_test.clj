@@ -77,10 +77,10 @@
   (let [detect-fn @(resolve 'bridge.brief/detect-finiteness-hints)]
     ;; Distributed system with channels, terms, logs
     (let [hints (detect-fn "distributed"
-                  ["Network uses Bag channels with bounded capacity"
-                   "currentTerm increments each election"
-                   "Log entries appended to sequence"
-                   "commitIndex advances monotonically"])]
+                           ["Network uses Bag channels with bounded capacity"
+                            "currentTerm increments each election"
+                            "Log entries appended to sequence"
+                            "commitIndex advances monotonically"])]
       (is (>= (count hints) 3) "Should detect channel, term, log, and commit patterns")
       (is (some #(= "BufferSize" (:suggested-constant %)) hints))
       (is (some #(= "MaxTerm" (:suggested-constant %)) hints))

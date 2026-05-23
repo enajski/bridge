@@ -45,8 +45,8 @@
 (defn- format-value [value fmt]
   (case fmt
     "bullets" (if (sequential? value)
-                 (str/join "\n" (map #(str "- " %) value))
-                 (str value))
+                (str/join "\n" (map #(str "- " %) value))
+                (str value))
     "csv" (if (sequential? value) (str/join ", " value) (str value))
     "edn" (pr-str value)
     (cond
@@ -65,20 +65,20 @@
 
 (defn- render-fragment [content context]
   (let [with-each (str/replace
-                    content
-                    each-pattern
-                    (fn [[_ token body]]
-                      (let [items (or (resolve-token context token) [])]
-                        (apply str
-                               (for [item items]
-                                 (str/replace body
-                                              #"\{\{\s*this\s*\}\}"
-                                              (format-value item nil)))))))
+                   content
+                   each-pattern
+                   (fn [[_ token body]]
+                     (let [items (or (resolve-token context token) [])]
+                       (apply str
+                              (for [item items]
+                                (str/replace body
+                                             #"\{\{\s*this\s*\}\}"
+                                             (format-value item nil)))))))
         with-if (str/replace
-                  with-each
-                  if-pattern
-                  (fn [[_ token body]]
-                    (if (truthy? (resolve-token context token)) body "")))]
+                 with-each
+                 if-pattern
+                 (fn [[_ token body]]
+                   (if (truthy? (resolve-token context token)) body "")))]
     (str/replace with-if
                  placeholder-pattern
                  (fn [[_ token fmt]]

@@ -340,7 +340,7 @@
                 duration-ms (- (System/currentTimeMillis) started-ms)
                 parsed (parse-result {:result-parser (:result-parser plan)} (:out result) (:err result))
                 artifact (validate-artifact!
-                           (evidence-run-artifact profile plan parsed result started-at finished-at duration-ms))]
+                          (evidence-run-artifact profile plan parsed result started-at finished-at duration-ms))]
             (bio/write-text (:stdout-path plan) (:out result))
             (bio/write-text (:stderr-path plan) (:err result))
             (bio/write-data (:artifact-path plan) artifact)

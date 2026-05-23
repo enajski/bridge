@@ -67,14 +67,14 @@
                                 (get-in artifact [:areas :formal-spec :artifacts])
                                 (get-in artifact [:areas :differential-evidence :artifacts]))]
     (->> (concat
-           (:files artifact)
-           (:change-surface artifact)
-           (get-in artifact [:repo-paths :code])
-           (get-in artifact [:repo-paths :formal])
-           (get-in artifact [:repo-paths :tests])
-           (get-in artifact [:models :code-paths])
-           (map #(get-in % [:source :path]) (:observables artifact))
-           impl-area-paths)
+          (:files artifact)
+          (:change-surface artifact)
+          (get-in artifact [:repo-paths :code])
+          (get-in artifact [:repo-paths :formal])
+          (get-in artifact [:repo-paths :tests])
+          (get-in artifact [:models :code-paths])
+          (map #(get-in % [:source :path]) (:observables artifact))
+          impl-area-paths)
          (filter stringish?)
          (map str)
          distinct
@@ -177,12 +177,12 @@
                 (if (= 1 (count canonicals))
                   (let [subject (first canonicals)
                         extra-aliases (->> (concat
-                                             (when-let [raw (subject-of artifact)]
-                                               (subject-aliases raw))
-                                             (when-let [ns-name (:namespace artifact)]
-                                               (subject-aliases ns-name))
-                                             (when-let [formal (:formal-module artifact)]
-                                               (subject-aliases formal)))
+                                            (when-let [raw (subject-of artifact)]
+                                              (subject-aliases raw))
+                                            (when-let [ns-name (:namespace artifact)]
+                                              (subject-aliases ns-name))
+                                            (when-let [formal (:formal-module artifact)]
+                                              (subject-aliases formal)))
                                            distinct)]
                     (reduce (fn [m alias]
                               (update m alias (fnil conj #{}) subject))

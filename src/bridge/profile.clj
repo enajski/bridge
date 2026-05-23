@@ -77,38 +77,38 @@
 
 (defn validate-normalized-profile! [profile]
   (let [errors (vec
-                 (concat
-                   (when-let [error (invalid-absolute-path [:root-path] (:root-path profile))]
-                     [error])
-                   (keep (fn [[k v]]
-                           (invalid-absolute-path [:artifact-paths k] v))
-                         (:artifact-paths profile))
-                   (when-let [error (invalid-absolute-path [:verification-policy-path] (:verification-policy-path profile))]
-                     [error])
-                   (mapcat (fn [idx command]
-                             (keep identity
-                                   [(invalid-absolute-path [:canonical-commands idx :cwd] (:cwd command))
-                                    (invalid-absolute-path [:canonical-commands idx :output-path] (:output-path command))]))
-                           (range)
-                           (:canonical-commands profile))
-                   (mapcat (fn [idx phase]
-                             (keep identity
-                                   [(invalid-absolute-path [:phases idx :output-path] (:output-path phase))
-                                    (invalid-absolute-path [:phases idx :cwd] (:cwd phase))]))
-                           (range)
-                           (:phases profile))
-                   (mapcat (fn [idx artifact]
-                             (concat
-                               (keep identity
-                                     (map-indexed (fn [input-idx path]
-                                                    (invalid-absolute-path [:derived-artifacts idx :inputs input-idx] path))
-                                                  (:inputs artifact)))
-                               (keep identity
-                                     (map-indexed (fn [output-idx path]
-                                                    (invalid-absolute-path [:derived-artifacts idx :outputs output-idx] path))
-                                                  (:outputs artifact)))))
-                           (range)
-                           (:derived-artifacts profile))))]
+                (concat
+                 (when-let [error (invalid-absolute-path [:root-path] (:root-path profile))]
+                   [error])
+                 (keep (fn [[k v]]
+                         (invalid-absolute-path [:artifact-paths k] v))
+                       (:artifact-paths profile))
+                 (when-let [error (invalid-absolute-path [:verification-policy-path] (:verification-policy-path profile))]
+                   [error])
+                 (mapcat (fn [idx command]
+                           (keep identity
+                                 [(invalid-absolute-path [:canonical-commands idx :cwd] (:cwd command))
+                                  (invalid-absolute-path [:canonical-commands idx :output-path] (:output-path command))]))
+                         (range)
+                         (:canonical-commands profile))
+                 (mapcat (fn [idx phase]
+                           (keep identity
+                                 [(invalid-absolute-path [:phases idx :output-path] (:output-path phase))
+                                  (invalid-absolute-path [:phases idx :cwd] (:cwd phase))]))
+                         (range)
+                         (:phases profile))
+                 (mapcat (fn [idx artifact]
+                           (concat
+                            (keep identity
+                                  (map-indexed (fn [input-idx path]
+                                                 (invalid-absolute-path [:derived-artifacts idx :inputs input-idx] path))
+                                               (:inputs artifact)))
+                            (keep identity
+                                  (map-indexed (fn [output-idx path]
+                                                 (invalid-absolute-path [:derived-artifacts idx :outputs output-idx] path))
+                                               (:outputs artifact)))))
+                         (range)
+                         (:derived-artifacts profile))))]
     (when (seq errors)
       (throw (ex-info "Invalid normalized profile paths"
                       {:source-path (:source-path profile)

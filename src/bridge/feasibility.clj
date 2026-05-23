@@ -32,7 +32,7 @@
        (str/join "\n" (map #(str "- " %) (:architecture-boundaries study)))
        "\n\n## Required PoCs / Escalations\n\n"
        (str/join "\n" (concat (map #(str "- POC: " %) (:required-pocs study))
-                                (map #(str "- Escalation: " %) (:escalations study))))
+                              (map #(str "- Escalation: " %) (:escalations study))))
        "\n"))
 
 (defn render-study! [artifact-path out-path]

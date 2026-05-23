@@ -23,9 +23,9 @@
                      :workflow-state "active"
                      :missing-obligations ["Revalidate required evidence: trace-validation"]
                      :missing-obligations-structured [{:kind "evidence-rerun"
-                                                      :subject "planner-runtime"
-                                                      :required-evidence ["trace-validation"]
-                                                      :reason "Need fresh trace validation."}]
+                                                       :subject "planner-runtime"
+                                                       :required-evidence ["trace-validation"]
+                                                       :reason "Need fresh trace validation."}]
                      :stale-artifacts []
                      :open-questions []})
     (bio/write-data (str (io/file artifact-dir "eval.yaml"))
@@ -95,9 +95,9 @@
                        :workflow-state "active"
                        :missing-obligations ["Revalidate required evidence: trace-validation"]
                        :missing-obligations-structured [{:kind "evidence-rerun"
-                                                        :subject "planner-runtime"
-                                                        :required-evidence ["trace-validation"]
-                                                        :reason "Need fresh trace validation."}]
+                                                         :subject "planner-runtime"
+                                                         :required-evidence ["trace-validation"]
+                                                         :reason "Need fresh trace validation."}]
                        :stale-artifacts []
                        :open-questions []}))
     (bio/write-data (str (io/file passing-dir "trace.yaml"))

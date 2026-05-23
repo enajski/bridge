@@ -430,33 +430,33 @@
         stale-details (stale-artifacts-detailed profile changed-files subsystem-names)
         requirement-sources (requirements/matched-source-summaries profile changed-files)]
     (cond-> {:artifact "change-intent-card"
-     :change-id change-id
-     :change-surface (mapv #(bio/relativize-path (:root-path profile)
-                                                 (bio/resolve-path (:root-path profile) %))
-                           changed-files)
-     :change-sources (change-sources change-kinds)
-     :inferred-intent {:summary (str "Change touches " (str/join ", " subsystem-names)
-                                     " across " (str/join ", " (map name change-kinds)) " surfaces.")
-                       :categories categories
-                       :mechanism-families (mechanism-families profile changed-files)
-                       :concern-classes concern-classes}
-     :accepted-intent {:status "draft"
-                       :summary "Human review pending."}
-     :semantic-scope {:contracts []
-                      :subsystems subsystem-names}
-     :risk-class (risk-class subsystems)
-     :workflow-state "draft"
-     :missing-obligations missing-obligations
-     :missing-obligations-structured structured-obligations
-     :recommended-obligations recommended-obligations
-     :recommended-obligations-structured structured-recommendations
-     :stale-artifacts (mapv :path stale-details)
-     :stale-artifacts-detailed stale-details
-     :open-questions (vec (concat
-                           (when (empty? subsystem-names)
-                             ["No subsystem matched changed files. Update project profile globs or assign subsystem manually."])
-                           (when (and policy (empty? missing-obligations))
-                             ["Confirm inferred intent categories before marking workflow active."])))}
+             :change-id change-id
+             :change-surface (mapv #(bio/relativize-path (:root-path profile)
+                                                         (bio/resolve-path (:root-path profile) %))
+                                   changed-files)
+             :change-sources (change-sources change-kinds)
+             :inferred-intent {:summary (str "Change touches " (str/join ", " subsystem-names)
+                                             " across " (str/join ", " (map name change-kinds)) " surfaces.")
+                               :categories categories
+                               :mechanism-families (mechanism-families profile changed-files)
+                               :concern-classes concern-classes}
+             :accepted-intent {:status "draft"
+                               :summary "Human review pending."}
+             :semantic-scope {:contracts []
+                              :subsystems subsystem-names}
+             :risk-class (risk-class subsystems)
+             :workflow-state "draft"
+             :missing-obligations missing-obligations
+             :missing-obligations-structured structured-obligations
+             :recommended-obligations recommended-obligations
+             :recommended-obligations-structured structured-recommendations
+             :stale-artifacts (mapv :path stale-details)
+             :stale-artifacts-detailed stale-details
+             :open-questions (vec (concat
+                                   (when (empty? subsystem-names)
+                                     ["No subsystem matched changed files. Update project profile globs or assign subsystem manually."])
+                                   (when (and policy (empty? missing-obligations))
+                                     ["Confirm inferred intent categories before marking workflow active."])))}
       (seq requirement-sources) (assoc :requirement-sources requirement-sources))))
 
 (defn change-impact-reports [profile changed-files]

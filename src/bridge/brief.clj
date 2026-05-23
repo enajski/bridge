@@ -38,55 +38,55 @@
 
 (def ^:private finiteness-patterns
   [{:trigger-fn (fn [category assumptions]
-                 (or (= category "distributed")
-                     (some #(let [t (str/lower-case (str %))]
-                              (or (str/includes? t "channel")
-                                  (str/includes? t "network")
-                                  (str/includes? t "message")
-                                  (str/includes? t "queue")
-                                  (str/includes? t "inbox")
-                                  (str/includes? t "fifo")
-                                  (str/includes? t "bag"))) assumptions)))
+                  (or (= category "distributed")
+                      (some #(let [t (str/lower-case (str %))]
+                               (or (str/includes? t "channel")
+                                   (str/includes? t "network")
+                                   (str/includes? t "message")
+                                   (str/includes? t "queue")
+                                   (str/includes? t "inbox")
+                                   (str/includes? t "fifo")
+                                   (str/includes? t "bag"))) assumptions)))
     :hint {:variable-pattern "message-channel / network inbox"
            :suggested-constant "BufferSize"
            :reason "Unbounded message channels create infinite state space. Bound channel capacity."
            :typical-values "2-10 for model checking, larger for simulation"}}
    {:trigger-fn (fn [category assumptions]
-                 (some #(let [t (str/lower-case (str %))]
-                          (or (str/includes? t "term")
-                              (str/includes? t "epoch")
-                              (str/includes? t "ballot")
-                              (str/includes? t "round")
-                              (str/includes? t "view"))) assumptions))
+                  (some #(let [t (str/lower-case (str %))]
+                           (or (str/includes? t "term")
+                               (str/includes? t "epoch")
+                               (str/includes? t "ballot")
+                               (str/includes? t "round")
+                               (str/includes? t "view"))) assumptions))
     :hint {:variable-pattern "term / epoch / ballot / round"
            :suggested-constant "MaxTerm"
            :reason "Monotonically increasing protocol counters create infinite state space."
            :typical-values "2-4 for model checking"}}
    {:trigger-fn (fn [category assumptions]
-                 (some #(let [t (str/lower-case (str %))]
-                          (or (str/includes? t "log")
-                              (str/includes? t "append")
-                              (str/includes? t "sequence")
-                              (str/includes? t "history"))) assumptions))
+                  (some #(let [t (str/lower-case (str %))]
+                           (or (str/includes? t "log")
+                               (str/includes? t "append")
+                               (str/includes? t "sequence")
+                               (str/includes? t "history"))) assumptions))
     :hint {:variable-pattern "log / append-only sequence"
            :suggested-constant "MaxLogLen"
            :reason "Growing log/sequence variables create infinite state space."
            :typical-values "3-5 for model checking"}}
    {:trigger-fn (fn [category assumptions]
-                 (some #(let [t (str/lower-case (str %))]
-                          (or (str/includes? t "commit")
-                              (str/includes? t "applied")
-                              (str/includes? t "progress"))) assumptions))
+                  (some #(let [t (str/lower-case (str %))]
+                           (or (str/includes? t "commit")
+                               (str/includes? t "applied")
+                               (str/includes? t "progress"))) assumptions))
     :hint {:variable-pattern "commit-index / applied-index"
            :suggested-constant "MaxCommitIndex"
            :reason "Monotonically advancing index variables need upper bounds."
            :typical-values "3-5 for model checking"}}
    {:trigger-fn (fn [category assumptions]
-                 (some #(let [t (str/lower-case (str %))]
-                          (or (str/includes? t "counter")
-                              (str/includes? t "stream")
-                              (str/includes? t "monotonic")
-                              (str/includes? t "increment"))) assumptions))
+                  (some #(let [t (str/lower-case (str %))]
+                           (or (str/includes? t "counter")
+                               (str/includes? t "stream")
+                               (str/includes? t "monotonic")
+                               (str/includes? t "increment"))) assumptions))
     :hint {:variable-pattern "counter / stream counter"
            :suggested-constant "MaxCounter"
            :reason "Unbounded counters create infinite state space."
@@ -108,9 +108,9 @@
 
 (defn- planned-evidence-for-rule [available rule]
   (->> (concat
-         (preferred-evidence-for-family (:mechanism-family rule))
-         (when (:formal-module rule) ["model-check"])
-         (when (:test-path rule) ["unit-tests"]))
+        (preferred-evidence-for-family (:mechanism-family rule))
+        (when (:formal-module rule) ["model-check"])
+        (when (:test-path rule) ["unit-tests"]))
        (map change/normalize-evidence-kind)
        (filter #(contains? available %))
        distinct
@@ -174,31 +174,31 @@
       :subject (or subject subsystem-name (:project-name profile))
       :category (or (some-> subsystem* :system-category name) "other")
       :summary (vec (concat
-                      [(str "Changed surface maps to subsystem " subsystem-name ".")]
-                      (when (seq evidence-summary)
-                        [(str "Policy expects evidence classes: " (str/join ", " evidence-summary) ".")])
-                      (when (seq role-summary)
-                        [(str "Policy expects evidence roles: " (str/join ", " role-summary) ".")])
-                      (when (seq changed-files)
-                        [(str "Files under review: "
-                              (str/join ", "
-                                        (map #(bio/relativize-path (:root-path profile)
-                                                                   (bio/resolve-path (:root-path profile) %))
-                                             changed-files)) ".")])
-                      (when (some #(not= "code-review-only" (:verification-method %)) mechanism-families)
-                        ["Executable evidence required for at least one affected mechanism family."])) )
+                     [(str "Changed surface maps to subsystem " subsystem-name ".")]
+                     (when (seq evidence-summary)
+                       [(str "Policy expects evidence classes: " (str/join ", " evidence-summary) ".")])
+                     (when (seq role-summary)
+                       [(str "Policy expects evidence roles: " (str/join ", " role-summary) ".")])
+                     (when (seq changed-files)
+                       [(str "Files under review: "
+                             (str/join ", "
+                                       (map #(bio/relativize-path (:root-path profile)
+                                                                  (bio/resolve-path (:root-path profile) %))
+                                            changed-files)) ".")])
+                     (when (some #(not= "code-review-only" (:verification-method %)) mechanism-families)
+                       ["Executable evidence required for at least one affected mechanism family."])))
       :concern-classes concern-classes
       :environment-assumptions (->> (concat (:environment-assumptions subsystem*)
                                             (:environment-assumptions profile))
-                                     (remove nil?)
-                                     distinct
-                                     vec)
+                                    (remove nil?)
+                                    distinct
+                                    vec)
       :environment-assumption-categories (->> (concat (:environment-assumptions subsystem*)
                                                       (:environment-assumptions profile))
-                                               (remove nil?)
-                                               (map normalize-environment-assumption)
-                                               distinct
-                                               vec)
+                                              (remove nil?)
+                                              (map normalize-environment-assumption)
+                                              distinct
+                                              vec)
       :mechanism-families mechanism-families
       :model-finiteness-hints (let [cat-raw (:system-category subsystem*)
                                     category (cond
@@ -212,24 +212,24 @@
                                 (detect-finiteness-hints category raw-assumptions))
       :co-model-with (vec (or (:coupled-with subsystem*) []))
       :non-goals (vec (concat
-                        (when-not (seq (:formal-globs subsystem*))
-                          ["No formal surface declared for this subsystem."])
-                        (when-not (seq (:test-globs subsystem*))
-                          ["No dedicated test surface declared for this subsystem."])))
+                       (when-not (seq (:formal-globs subsystem*))
+                         ["No formal surface declared for this subsystem."])
+                       (when-not (seq (:test-globs subsystem*))
+                         ["No dedicated test surface declared for this subsystem."])))
       :handoff-outputs [(bio/resolve-path (get-in profile [:artifact-paths :root])
                                           (str subsystem-name "-verification-brief.yaml"))
                         (bio/resolve-path (get-in profile [:artifact-paths :root])
                                           (str subsystem-name "-observable-contract.yaml"))]
       :open-questions (vec (concat
-                             (when (empty? rules)
-                               ["No mechanism-family rule matched. Add file-glob-rules for stronger planning."])
-                             (when (and policy-view (empty? evidence-summary))
-                               ["No policy rule matched. Confirm evidence expectations manually."])
-                             (let [missing-roles (when policy-view
-                                                   (evidence/missing-roles profile role-summary))]
-                               (when (seq missing-roles)
-                                 [(str "No command registered for evidence role(s): "
-                                       (str/join ", " missing-roles) ".")])))) })))
+                            (when (empty? rules)
+                              ["No mechanism-family rule matched. Add file-glob-rules for stronger planning."])
+                            (when (and policy-view (empty? evidence-summary))
+                              ["No policy rule matched. Confirm evidence expectations manually."])
+                            (let [missing-roles (when policy-view
+                                                  (evidence/missing-roles profile role-summary))]
+                              (when (seq missing-roles)
+                                [(str "No command registered for evidence role(s): "
+                                      (str/join ", " missing-roles) ".")]))))})))
 
 (defn plan-seed
   ([profile changed-files]
@@ -242,15 +242,15 @@
       :subject (first (get-in intent [:semantic-scope :subsystems]))
       :workflow-state (:workflow-state intent)
       :steps (vec (concat
-                    [{:step 1 :kind "review-intent" :summary "Confirm inferred intent and subsystem scope."}]
-                    (map-indexed (fn [idx obligation]
-                                   {:step (+ idx 2)
-                                    :kind "close-obligation"
-                                    :summary obligation})
-                                 obligations)
-                    [{:step (+ 2 (count obligations))
-                      :kind "refresh-artifacts"
-                      :summary "Update verification-brief, observable-contract, and ledgers as needed."}]))
+                   [{:step 1 :kind "review-intent" :summary "Confirm inferred intent and subsystem scope."}]
+                   (map-indexed (fn [idx obligation]
+                                  {:step (+ idx 2)
+                                   :kind "close-obligation"
+                                   :summary obligation})
+                                obligations)
+                   [{:step (+ 2 (count obligations))
+                     :kind "refresh-artifacts"
+                     :summary "Update verification-brief, observable-contract, and ledgers as needed."}]))
       :artifacts-to-update (vec (concat (:stale-artifacts intent)
                                         [(str (first (get-in intent [:semantic-scope :subsystems])) " verification-brief")]))
       :commands (mapv :command (:canonical-commands profile))})))
