@@ -9,23 +9,28 @@ on:
 jobs:
   bridge:
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 2
 
       - name: Set up Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "21"
 
       - name: Set up Babashka
-        uses: DeLaGuardo/setup-clojure@13.2
-        with:
-          bb: latest
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -sLO https://raw.githubusercontent.com/babashka/babashka/master/install
+          chmod +x install
+          sudo ./install --dir /usr/local/bin
 
       - name: Resolve Bridge diff spec
         id: diff
@@ -55,7 +60,8 @@ jobs:
 
       - name: Upload Bridge receipts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: bridge-ephemeral
           path: .bridge/ephemeral
+          if-no-files-found: ignore
