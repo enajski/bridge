@@ -37,6 +37,15 @@
                        :timed-out? timed-out?
                        :stderr err})))))
 
+(defn- git-working-tree? [root]
+  (try
+    (let [{:keys [exit out]} (bio/run-process {:argv ["git" "rev-parse" "--is-inside-work-tree"]
+                                               :cwd root
+                                               :timeout-ms 10000})]
+      (and (zero? exit)
+           (= "true" (str/trim out))))
+    (catch Exception _ false)))
+
 (defn detect-git-changed-files [profile]
   (let [root (:root-path profile)]
     (->> (concat
@@ -53,6 +62,16 @@
                ["git" "diff" "--name-only" spec "HEAD"])]
     (process-lines root argv)))
 
+(defn- default-change-detection [profile]
+  (let [root (:root-path profile)]
+    (if (git-working-tree? root)
+      {:changed-files (detect-git-changed-files profile)
+       :change-detection {:mode "working-tree"}
+       :change-id "working-tree"}
+      {:changed-files (bio/repo-files root)
+       :change-detection {:mode "workspace-scan"}
+       :change-id "workspace-scan"})))
+
 (defn- normalize-changed-files [profile changed-files]
   (->> changed-files
        (map #(bio/relativize-path (:root-path profile)
@@ -60,29 +79,26 @@
        distinct
        vec))
 
-(defn resolve-changed-files
-  [profile opts]
-  (let [{:keys [changed-files git-diff-spec]} (or opts {})
-        files (cond
-                (seq changed-files) changed-files
-                git-diff-spec (git-diff-changed-files profile git-diff-spec)
-                :else (detect-git-changed-files profile))]
-    (normalize-changed-files profile files)))
-
 (defn resolve-change-detection
   [profile {:keys [changed-files git-diff-spec]}]
-  (let [mode (cond
-               (seq changed-files) "explicit-files"
-               git-diff-spec "git-diff"
-               :else "working-tree")]
-    {:changed-files (resolve-changed-files profile {:changed-files changed-files
-                                                    :git-diff-spec git-diff-spec})
-     :change-detection (cond-> {:mode mode}
-                         git-diff-spec (assoc :spec git-diff-spec))
-     :change-id (cond
-                  (seq changed-files) "explicit-files"
-                  git-diff-spec (str "git-diff:" git-diff-spec)
-                  :else "working-tree")}))
+  (let [resolved (cond
+                   (seq changed-files)
+                   {:changed-files changed-files
+                    :change-detection {:mode "explicit-files"}
+                    :change-id "explicit-files"}
+
+                   git-diff-spec
+                   {:changed-files (git-diff-changed-files profile git-diff-spec)
+                    :change-detection {:mode "git-diff" :spec git-diff-spec}
+                    :change-id (str "git-diff:" git-diff-spec)}
+
+                   :else
+                   (default-change-detection profile))]
+    (update resolved :changed-files #(normalize-changed-files profile %))))
+
+(defn resolve-changed-files
+  [profile opts]
+  (:changed-files (resolve-change-detection profile opts)))
 
 (defn- load-policy [profile]
   (let [policy-path (or (:verification-policy-path profile)

@@ -158,6 +158,21 @@
     (is (= "git-diff:HEAD^1" (get-in status [:intent :change-id])))
     (is (= "attention-required" (:status status)))))
 
+(deftest resolve-changed-files-falls-back-to-workspace-scan-outside-git
+  (let [dir (temp-dir)
+        _ (.mkdirs (io/file dir "src/runtime"))
+        _ (.mkdirs (io/file dir ".bridge/ephemeral"))
+        _ (spit (io/file dir "src/runtime/core.clj") "(ns runtime.core)\n")
+        _ (spit (io/file dir "README.md") "# demo\n")
+        _ (spit (io/file dir ".bridge/ephemeral/ignore.yaml") "artifact: ignored\n")
+        loaded (profile/normalize-profile (profile dir) (str (io/file dir "profile.edn")))
+        status (next/build-status loaded {})]
+    (is (= ["README.md" "src/runtime/core.clj"] (sort (next/resolve-changed-files loaded {}))))
+    (is (= {:mode "workspace-scan"} (:change-detection status)))
+    (is (= "workspace-scan" (get-in status [:intent :change-id])))
+    (is (= ["README.md" "src/runtime/core.clj"] (sort (:changed-files status))))
+    (is (= "attention-required" (:status status)))))
+
 (deftest git-diff-errors-on-invalid-revspec
   (let [dir (temp-dir)
         _ (init-git-repo! dir)
