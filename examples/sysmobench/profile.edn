@@ -3,7 +3,7 @@
  :root-path "../../../SysMoBench"
  :code-paths ["config" "data" "tla_eval" "scripts"]
  :docs-paths ["README.md" "docs"]
- :formal-paths ["data/spec" "output/compilation_check" "output/invariant_verification" "output/trace_validation"]
+ :formal-paths ["data/spec" "output/compilation_check" "output/invariant_verification" "tv-workspaces"]
  :test-paths ["tests"]
  :artifact-paths {:root ".bridge/artifacts"
                   :phases ".bridge/artifacts/phases"
@@ -16,29 +16,25 @@
                        :kind "trace-validation"
                        :role "conformance"
                        :cwd "."
-                       :command "source .venv/bin/activate && METHOD=${BRIDGE_SYSMOBENCH_METHOD:-direct_call} && MODEL=${BRIDGE_SYSMOBENCH_MODEL:-copilot_claude} && LATEST=$(ls -dt output/compilation_check/tla/spin/${METHOD}_${MODEL}/* | head -n1) && SPEC=$LATEST/spin.tla && CFG=$LATEST/spin.cfg && sysmobench --task spin --method $METHOD --model $MODEL --metric trace_validation --spec-file \"$SPEC\" --config-file \"$CFG\" --with-exist-traces 20"
-                       :description "Run SysMoBench spin trace-validation with latest compiled spec and existing traces"
+                       :command "source .venv/bin/activate && METHOD=${BRIDGE_SYSMOBENCH_METHOD:-direct_call} && MODEL=${BRIDGE_SYSMOBENCH_MODEL:-gpt5} && LATEST=$(ls -dt output/compilation_check/tla/spin/${METHOD}_${MODEL}/* | head -n1) && SPEC=$LATEST/spin.tla && CFG=$LATEST/spin.cfg && sysmobench --task spin --method $METHOD --model $MODEL --metric transition_validation --spec-file \"$SPEC\" --config-file \"$CFG\" --tv-agent codex --tv-model gpt-5.4-mini --yes"
+                       :description "Run SysMoBench spin transition-validation with the latest compiled spec and Codex gpt-5.4-mini as the TV agent"
                        :result-parser {:type "regex-status"
-                                       :rules [{:stream :stdout :regex "Trace validation: ✓ PASS" :status "passed"}
-                                               {:stream :stderr :regex "Trace validation: ✓ PASS" :status "passed"}
-                                               {:stream :stdout :regex "Trace validation: ✗ FAIL" :status "failed"}
-                                               {:stream :stderr :regex "Trace validation: ✗ FAIL" :status "failed"}]
-                                       :captures [{:stream :stdout :regex "Postcondition TraceAccepted[^\\n]*false\\." :as "primary-failure" :failure-signal? true}
-                                                  {:stream :stderr :regex "Postcondition TraceAccepted[^\\n]*false\\." :as "primary-failure" :failure-signal? true}
-                                                  {:stream :stdout :regex "Parsing or semantic analysis failed\\." :as "semantic-failure" :failure-signal? true}
-                                                  {:stream :stderr :regex "Parsing or semantic analysis failed\\." :as "semantic-failure" :failure-signal? true}]
-                                       :path-extractors [{:stream :stdout :regex "Looking for existing specTrace files in: (.+)" :as "spec-dir"}
-                                                         {:stream :stdout :regex "Generated specTrace files in: (.+)" :as "spec-dir"}
-                                                         {:stream :stdout :regex "Spec directory: (.+)" :as "spec-dir"}
-                                                         {:stream :stdout :regex "Using output directory: (.+)" :as "output-dir"}
-                                                         {:stream :stdout :regex "Trace file: (.+)" :as "sample-trace"}
-                                                         {:stream :stdout :regex "Verifying trace 1/[^:]+: ([^\\n]+)" :as "sample-trace"}]
+                                       :rules [{:stream :stdout :regex "Transition Validation Results: ✓ PASS" :status "passed"}
+                                               {:stream :stderr :regex "Transition Validation Results: ✓ PASS" :status "passed"}
+                                               {:stream :stdout :regex "Transition Validation Results: ✗ FAIL" :status "failed"}
+                                               {:stream :stderr :regex "Transition Validation Results: ✗ FAIL" :status "failed"}]
+                                       :captures [{:stream :stdout :regex "Error: ([^\\n]+)" :as "primary-failure" :failure-signal? true}
+                                                  {:stream :stderr :regex "Error: ([^\\n]+)" :as "primary-failure" :failure-signal? true}
+                                                  {:stream :stdout :regex "launch_tv_eval\\.sh created no workspace[^\\n]*" :as "launcher-failure" :failure-signal? true}
+                                                  {:stream :stderr :regex "launch_tv_eval\\.sh created no workspace[^\\n]*" :as "launcher-failure" :failure-signal? true}]
+                                       :path-extractors [{:stream :stdout :regex "Workspace: (.+)" :as "workspace-dir"}
+                                                         {:stream :stderr :regex "Workspace: (.+)" :as "workspace-dir"}]
                                        :suggested-labels ["spec-unfaithful" "reproduced"]}}
                       {:id "spin-invariant-verification"
                        :kind "model-check"
                        :role "exploration"
                        :cwd "."
-                       :command "source .venv/bin/activate && METHOD=${BRIDGE_SYSMOBENCH_METHOD:-direct_call} && MODEL=${BRIDGE_SYSMOBENCH_MODEL:-copilot_claude} && LATEST=$(ls -dt output/compilation_check/tla/spin/${METHOD}_${MODEL}/* | head -n1) && SPEC=$LATEST/spin.tla && CFG=$LATEST/spin.cfg && sysmobench --task spin --method $METHOD --model $MODEL --metric invariant_verification --spec-file \"$SPEC\" --config-file \"$CFG\" --tlc-timeout 180"
+                       :command "source .venv/bin/activate && METHOD=${BRIDGE_SYSMOBENCH_METHOD:-direct_call} && MODEL=${BRIDGE_SYSMOBENCH_MODEL:-gpt5} && LATEST=$(ls -dt output/compilation_check/tla/spin/${METHOD}_${MODEL}/* | head -n1) && SPEC=$LATEST/spin.tla && CFG=$LATEST/spin.cfg && sysmobench --task spin --method $METHOD --model $MODEL --metric invariant_verification --spec-file \"$SPEC\" --config-file \"$CFG\" --tlc-timeout 180"
                        :description "Run SysMoBench spin invariant verification with latest compiled spec"
                        :result-parser {:type "regex-status"
                                        :rules [{:stream :stdout :regex "Semantics Evaluation Results: ✓ PASS" :status "passed"}
@@ -70,7 +66,7 @@
                               "output/compilation_check/tla/spin/**/*.tla"
                               "output/compilation_check/tla/spin/**/*.cfg"
                               "output/invariant_verification/tla/spin/**/*"
-                              "output/trace_validation/tla/spin/**/*"]
+                              "tv-workspaces/**/*"]
                :test-globs ["tests/**/*.py"]
                :expected-artifacts ["change-intent-card"
                                     "verification-brief"
@@ -78,7 +74,7 @@
                                     "completeness-ledger"
                                     "verification-scope-ledger"
                                     "assumption-ledger"]
-               :expected-evidence ["trace-validation" "model-check" "custom"]
+               :expected-evidence ["transition-validation" "model-check" "custom"]
                :system-category "distributed"
                :risk-class "high"
                :environment-assumptions ["Python virtualenv is active or activatable from .venv."
@@ -133,9 +129,9 @@
                                "output/compilation_check/tla/spin/**/*.cfg"]
                       :outputs ["output/compilation_check/tla/spin/**/specTrace.tla"
                                 "output/compilation_check/tla/spin/**/specTrace.cfg"]}
-                     {:name "spin-trace-config"
-                      :kind "generated-trace-config"
+                     {:name "spin-transition-workspace"
+                      :kind "generated-transition-workspace"
                       :inputs ["data/convertor/spin/**/*.json"
                                "tla_eval/core/trace_generation/spin/**/*.py"
                                "config/models.yaml"]
-                      :outputs ["output/trace_validation/tla/spin/**/*.yaml"]}]}
+                      :outputs ["tv-workspaces/**/*"]}]}

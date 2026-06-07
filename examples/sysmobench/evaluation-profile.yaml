@@ -13,49 +13,43 @@ command-steps:
     command: >-
       source .venv/bin/activate &&
       METHOD=${BRIDGE_SYSMOBENCH_METHOD:-direct_call} &&
-      MODEL=${BRIDGE_SYSMOBENCH_MODEL:-copilot_claude} &&
+      MODEL=${BRIDGE_SYSMOBENCH_MODEL:-gpt5} &&
       LATEST=$(ls -dt output/compilation_check/tla/spin/${METHOD}_${MODEL}/* | head -n1) &&
       SPEC=$LATEST/spin.tla &&
       CFG=$LATEST/spin.cfg &&
-      sysmobench --task spin --method $METHOD --model $MODEL --metric trace_validation
-      --spec-file "$SPEC" --config-file "$CFG" --with-exist-traces 20
+      sysmobench --task spin --method $METHOD --model $MODEL --metric transition_validation
+      --spec-file "$SPEC" --config-file "$CFG" --tv-agent codex --tv-model gpt-5.4-mini --yes
     result-parser:
       type: regex-status
       rules:
         - stream: stdout
-          regex: 'Trace validation: ✓ PASS'
+          regex: 'Transition Validation Results: ✓ PASS'
           status: passed
         - stream: stderr
-          regex: 'Trace validation: ✓ PASS'
+          regex: 'Transition Validation Results: ✓ PASS'
           status: passed
         - stream: stdout
-          regex: 'Trace validation: ✗ FAIL'
+          regex: 'Transition Validation Results: ✗ FAIL'
           status: failed
         - stream: stderr
-          regex: 'Trace validation: ✗ FAIL'
+          regex: 'Transition Validation Results: ✗ FAIL'
           status: failed
       captures:
         - stream: stdout
-          regex: 'Postcondition TraceAccepted[^\n]*false\.'
+          regex: 'Error: ([^\n]+)'
           as: primary-failure
           failure-signal?: true
         - stream: stderr
-          regex: 'Postcondition TraceAccepted[^\n]*false\.'
+          regex: 'Error: ([^\n]+)'
           as: primary-failure
           failure-signal?: true
       path-extractors:
         - stream: stdout
-          regex: 'Looking for existing specTrace files in: (.+)'
-          as: spec-dir
-        - stream: stdout
-          regex: 'Generated specTrace files in: (.+)'
-          as: spec-dir
-        - stream: stdout
-          regex: 'Using output directory: (.+)'
-          as: output-dir
-        - stream: stdout
-          regex: 'Verifying trace 1/[^:]+: ([^\n]+)'
-          as: sample-trace
+          regex: 'Workspace: (.+)'
+          as: workspace-dir
+        - stream: stderr
+          regex: 'Workspace: (.+)'
+          as: workspace-dir
       suggested-labels:
         - spec-unfaithful
         - reproduced
@@ -65,7 +59,7 @@ command-steps:
     command: >-
       source .venv/bin/activate &&
       METHOD=${BRIDGE_SYSMOBENCH_METHOD:-direct_call} &&
-      MODEL=${BRIDGE_SYSMOBENCH_MODEL:-copilot_claude} &&
+      MODEL=${BRIDGE_SYSMOBENCH_MODEL:-gpt5} &&
       LATEST=$(ls -dt output/compilation_check/tla/spin/${METHOD}_${MODEL}/* | head -n1) &&
       SPEC=$LATEST/spin.tla &&
       CFG=$LATEST/spin.cfg &&
@@ -92,7 +86,7 @@ command-steps:
           as: output-dir
 metric-mappings:
   - external-key: spin-trace-validation.primary-failure
-    bridge-key: sysmobench/trace-validation-primary-failure
+    bridge-key: sysmobench/transition-validation-primary-failure
     kind: external
 bridge-metrics:
   - artifact-valid-count

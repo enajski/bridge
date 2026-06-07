@@ -7,6 +7,7 @@ Current examples emphasize:
 - `verification-brief`
 - `observable-contract`
 - `differential-evidence-card`
+- evaluation-profile and evaluation-report shapes for benchmark slices such as SysMoBench
 - status vocabularies such as:
   - `expected-window`
   - `known-deviation`
@@ -20,6 +21,7 @@ Current examples emphasize:
 Use together with:
 
 - `status-vocabularies.md`
+- `evaluation-report-sysmobench.yaml`
 - `../schema-reference.md`
 - `../case-study-learnings.md`
 - `../bridge-prompts.md`
