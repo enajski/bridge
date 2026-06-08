@@ -4,4 +4,5 @@
 *.class
 *.log
 docs/internal
+docs/wiki
 /.bridge/ephemeral/
