@@ -18,7 +18,8 @@
             bridge.evidence-test
             bridge.next-test
             bridge.observe-test
-            bridge.status-test))
+            bridge.status-test
+            bridge.summary-test))
 
 (defn -main []
   (let [{:keys [fail error]} (t/run-all-tests #"bridge\..*")]

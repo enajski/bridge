@@ -68,7 +68,8 @@
         experimental-names (set (map :name (:experimental by-stability)))]
     (is (= '#{load-profile profile-summary load-policy init!
               normalize-evidence-kind list-commands run-command
-              find-artifacts resolve-path relativize-path exists?
+              find-artifacts check status-summary
+              resolve-path relativize-path exists?
               read-data contract}
            stable-names)
         "adding or removing a stable var is a contract change — update this test, docs/api.md, and the CHANGELOG together")
@@ -108,7 +109,12 @@
       (let [status (api/build-status profile {:changed-files ["src/foo/core.clj"]})]
         (is (contains? #{"clear" "attention-required"} (:status status)))
         (is (vector? (api/planned-actions status)))
-        (is (= (first (api/planned-actions status)) (api/next-action status)))))))
+        (is (= (first (api/planned-actions status)) (api/next-action status)))))
+    (testing "check returns the canonical summary and matches the projection"
+      (let [opts {:changed-files ["src/foo/core.clj"]}
+            summary (api/check profile opts)]
+        (is (= 1 (:summary-version summary)))
+        (is (= summary (api/status-summary (api/build-status profile opts))))))))
 
 (deftest init-bootstraps-a-bridge-layout
   (let [dir (temp-dir)

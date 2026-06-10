@@ -25,7 +25,8 @@
             [bridge.io :as bio]
             [bridge.next :as next-guide]
             [bridge.policy :as policy]
-            [bridge.profile :as profile]))
+            [bridge.profile :as profile]
+            [bridge.summary :as summary]))
 
 ;; ---------------------------------------------------------------------------
 ;; Profile and policy (stable)
@@ -115,22 +116,45 @@
   (artifacts/find-artifacts root))
 
 ;; ---------------------------------------------------------------------------
-;; Status (experimental)
+;; Status (stable: canonical summary; experimental: raw status)
+
+(defn ^{:bridge.api/stability :stable} check
+  "Run the full verification status check for a profile and return the
+  canonical machine-readable status summary (`:summary-version` 1) —
+  the same shape `bb bridge check --format summary` prints. `opts`
+  keys: `:changed-files`, `:git-diff-spec`, `:policy` (preloaded policy
+  data).
+
+  The summary contains `:project`, `:status` (\"clear\" or
+  \"attention-required\"), `:issue-count`, `:changed-files`,
+  `:change-detection`, `:counts`, `:required-obligations` (flattened,
+  failed first then open), `:recommended-obligations`,
+  `:stale-artifacts`, `:subject-problems`, `:evidence-receipts`,
+  `:convergence-summary`, and `:next-action`. See bridge.summary for
+  the field-level contract. This is the supported way to consume check
+  status; prefer it over `build-status`."
+  ([profile] (check profile {}))
+  ([profile opts] (summary/status-summary (next-guide/build-status profile opts))))
+
+(defn ^{:bridge.api/stability :stable} status-summary
+  "Project an existing `build-status` result into the canonical status
+  summary (`:summary-version` 1) — the same shape `check` returns. For
+  consumers that already hold a raw status map."
+  [status]
+  (summary/status-summary status))
 
 (defn ^{:bridge.api/stability :experimental} build-status
-  "Build the full verification status for a profile — the backbone of
-  `bb bridge check` and the Vis `br/check` tool. `opts` keys:
-  `:changed-files`, `:git-diff-spec`, `:policy` (preloaded policy data).
-  Returns a map including `:status` (\"clear\" or
-  \"attention-required\"), `:issue-count`, `:open-obligations`,
+  "Build the full raw verification status for a profile — the
+  unprojected backbone behind `check`. `opts` keys: `:changed-files`,
+  `:git-diff-spec`, `:policy` (preloaded policy data). Returns a map
+  including `:status`, `:issue-count`, `:open-obligations`,
   `:failed-obligations`, `:completed-obligations`,
   `:recommended-obligations`, `:stale-artifacts`, `:subject-problems`,
   `:convergence-summary`, `:intent`, and change-detection fields.
 
-  Experimental: this shape predates the planned canonical status
-  summary; field names and nesting will change when that lands.
-  Consumers should select the keys they need rather than relying on the
-  full shape."
+  Experimental: the raw shape is not a contract — prefer `check` (or
+  `status-summary` over this result), which is. Direct consumers should
+  select the keys they need rather than relying on the full shape."
   ([profile] (build-status profile {}))
   ([profile opts] (next-guide/build-status profile opts)))
 

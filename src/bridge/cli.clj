@@ -14,8 +14,10 @@
             [bridge.requirements :as requirements]
             [bridge.schema :as schema]
             [bridge.status :as status]
+            [bridge.summary :as summary]
             [bridge.templates :as templates]
             [bridge.workflow :as workflow]
+            [cheshire.core :as json]
             [clojure.edn :as edn]
             [clojure.java.io :as io]
             [clojure.pprint :as pprint]
@@ -128,8 +130,9 @@
     "      Emit requirement traceability coverage as docs-or-nl-spec evidence."
     "  analyze-change --profile FILE [--changed-file PATH]... [--git-diff SPEC] [--out FILE]"
     "      Build a change-intent card from changed files."
-    "  check [--profile FILE] [--changed-file PATH]... [--git-diff SPEC] [--format text|edn] [--no-color]"
+    "  check [--profile FILE] [--changed-file PATH]... [--git-diff SPEC] [--format text|edn|summary|summary-json] [--no-color]"
     "      Print status for automation and exit nonzero on issues."
+    "      summary/summary-json print the canonical machine-readable status summary."
     "  next [--profile FILE] [--changed-file PATH]... [--git-diff SPEC] [--tui never|always|auto] [--no-color]"
     "      Show the next verification work for a repo. Plain text is the default."
     "  auto [--profile FILE] [--changed-file PATH]... [--git-diff SPEC] [--dry-run] [--continue-on-failure] [--id ID]"
@@ -642,8 +645,10 @@
   (let [format (or (:format opts) "text")
         color? (and (not (:no-color opts))
                     (not= "never" (:color opts)))]
-    (if (= "edn" format)
-      (println-data status)
+    (case format
+      "edn" (println-data status)
+      "summary" (println-data (summary/status-summary status))
+      "summary-json" (println (json/generate-string (summary/status-summary status) {:pretty true}))
       (print (next-guide/render-plain status {:color? color?})))
     (flush)
     (when (= "check" command)

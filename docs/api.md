@@ -36,6 +36,8 @@ reviewed change.
 | `normalize-evidence-kind` | Canonicalize an evidence-kind string/keyword (e.g. `"unit"` → `"unit-tests"`). |
 | `list-commands` | Flat descriptors of the profile's canonical evidence commands. |
 | `run-command` | Execute one evidence command, write captures + a schema-validated `evidence-run` receipt, return the receipt. Supports `:dry-run?`. |
+| `check` | Run the verification status check and return the **canonical status summary** (`:summary-version` 1) — flattened required/recommended obligations (failed first), evidence receipts, counts, and next action. Same shape as `bb bridge check --format summary`/`summary-json`. The supported way to consume check status. |
+| `status-summary` | Project an existing `build-status` result into the canonical summary. |
 | `find-artifacts` | Read all Bridge artifacts under a directory, with `:_path` back-references. |
 | `resolve-path`, `relativize-path`, `exists?`, `read-data` | Path/data utilities with the same semantics Bridge uses internally — for profile discovery and policy reading on the consumer side. |
 | `contract` | The API inventory as data. |
@@ -44,16 +46,17 @@ reviewed change.
 
 | Var | Purpose | Why experimental |
 | :--- | :--- | :--- |
-| `build-status` | Full verification status (the backbone of `bb bridge check` / Vis `br/check`). | The shape predates the planned canonical machine-readable status summary; field names and nesting will change when that lands. |
-| `planned-actions` | Runnable evidence actions derived from a status, failed-first. | Tied to the `build-status` shape. |
-| `next-action` | First planned action or nil. | Tied to the `build-status` shape. |
+| `build-status` | Full raw verification status (the unprojected backbone behind `check`). | The raw shape is not a contract; the canonical summary (`check`) is. Direct consumers should select keys, not rely on the full shape. |
+| `planned-actions` | Runnable evidence actions derived from a raw status, failed-first. | Tied to the raw `build-status` shape; the first action is already embedded in the summary as `:next-action`. |
+| `next-action` | First planned action or nil. | Tied to the raw `build-status` shape; embedded in the summary as `:next-action`. |
 
-The experimental tier is where the status-summary work (decision D6 in the
-bridge-vis design wiki) will land: Bridge will own a canonical
-status-summary shape, and the summary flattening that today lives in the Vis
-extension will move behind this namespace. When that happens, `build-status`
-either stabilizes or is superseded by a stable summary function, with a
-CHANGELOG entry and a migration note either way.
+The canonical status summary (decision D6 in the bridge-vis design wiki)
+landed as `bridge.summary`/`bridge.api/check`: the summary flattening that
+previously lived in the Vis extension now lives in the kernel, the shape
+carries `:summary-version` for explicit evolution, and `bb bridge check
+--format summary|summary-json` prints the identical shape so CLI and library
+consumers share one meaning. `build-status` stays available as the raw,
+experimental input for consumers that genuinely need unprojected detail.
 
 ## What is deliberately NOT in the API
 
