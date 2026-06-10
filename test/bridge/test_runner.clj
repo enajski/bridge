@@ -1,5 +1,6 @@
 (ns bridge.test-runner
   (:require [clojure.test :as t]
+            bridge.api-test
             bridge.artifact-roundtrip-test
             bridge.artifacts-test
             bridge.brief-test

@@ -170,6 +170,18 @@ Different types of subsystems require different verification approaches. You can
 
 ---
 
+## Library API
+
+Bridge can be consumed as a library (the Vis bridge extension is the
+reference consumer). The only supported entry point is the `bridge.api`
+namespace; every var there is tagged `:stable` or `:experimental`, and
+`(bridge.api/contract)` returns the inventory as data. All other
+`bridge.*` namespaces are internal. See [docs/api.md](docs/api.md) for the
+full contract and change policy, and [CHANGELOG.md](CHANGELOG.md) for
+contract-level changes.
+
+---
+
 ## Repo Layout
 
 - `src/bridge/` — CLI and workflow engine implementation.
